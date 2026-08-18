@@ -76,6 +76,10 @@ $("theme-toggle").addEventListener("click", () => {
 });
 $("open-goals").addEventListener("click", () => showGoals(true));
 $("back-hub").addEventListener("click", () => showGoals(false));
+$("home-link").addEventListener("click", (e) => {
+  e.preventDefault();
+  showGoals(false);
+});
 
 if (location.hash === "#цели" || location.hash === "#goals") showGoals(true);
 
