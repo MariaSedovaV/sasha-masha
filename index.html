@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div class="photo-layer" aria-hidden="true">
@@ -72,22 +72,55 @@
     </section>
 
     <section class="goals hidden" id="goals-view" hidden>
-      <div class="goals-head">
-        <button type="button" class="back-hub" id="back-hub">← к экосистеме</button>
-        <div>
-          <p class="eyebrow">карта желаний</p>
-          <h2 class="goals-title">Цели</h2>
-        </div>
-      </div>
+      <button type="button" class="back-hub" id="back-hub">← к экосистеме</button>
+      <p class="eyebrow">карта желаний</p>
+      <h2 class="goals-title">Цели</h2>
+      <p class="goals-lead">Не чеклист, а нить, по которой мы идём. Пусть случится вовремя — или раньше.</p>
 
-      <form class="goal-form" id="goal-form">
-        <input name="when" maxlength="24" placeholder="до 2031" aria-label="Срок" required />
-        <input name="title" maxlength="80" placeholder="Новая цель" aria-label="Название цели" required />
-        <input name="text" maxlength="180" placeholder="Пара слов — по желанию" aria-label="Описание" />
-        <button type="submit">Добавить</button>
-      </form>
-
-      <ol class="timeline" id="timeline"></ol>
+      <ol class="timeline">
+        <li class="node node-rose">
+          <div class="node-when">до 2027</div>
+          <div class="node-card">
+            <h3>Счастливо выйти замуж / жениться</h3>
+            <p>Перестать ссориться по мелочам. У нас всё хорошо! Все живы и здоровы, а остальное поправимо, всё можно решить.</p>
+          </div>
+        </li>
+        <li class="node node-sage">
+          <div class="node-when">до Q3 2027</div>
+          <div class="node-card">
+            <h3>Квартира на Тосина с ремонтом</h3>
+            <p>Мы переезжаем в свою квартиру!!</p>
+          </div>
+        </li>
+        <li class="node node-gold">
+          <div class="node-when">до 2028</div>
+          <div class="node-card">
+            <h3>Первый ребёнок</h3>
+            <p>Какое счастье!</p>
+          </div>
+        </li>
+        <li class="node node-sky">
+          <div class="node-when">до 2029</div>
+          <div class="node-card">
+            <h3>Саша — ГД</h3>
+            <p>Или ГД-1, но с внушительным окладом!</p>
+          </div>
+        </li>
+        <li class="node node-gold">
+          <div class="node-when">до 2030</div>
+          <div class="node-card">
+            <h3>Квартира в центре / дом за городом / за рубежом</h3>
+            <p>Мы так планировали — но пусть случится раньше!</p>
+          </div>
+        </li>
+        <li class="node node-sage">
+          <div class="node-when">до 2030</div>
+          <div class="node-card">
+            <h3>Погашенная ипотека на Тосина</h3>
+            <p>Теперь можно и второго планировать :))</p>
+          </div>
+        </li>
+      </ol>
     </section>
   </main>
 
@@ -116,7 +149,7 @@
     </form>
   </section>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
   <script src="assistant.js?v=5"></script>
 </body>
 </html>
