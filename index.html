@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0c10" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Sasha &amp; Masha | Экосистема</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <script>
+    document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="photo-layer" aria-hidden="true">
+    <img src="assets/together.png" alt="" />
+    <div class="photo-veil"></div>
+  </div>
+
+  <header class="site-chrome">
+    <div class="brand">
+      <span class="logo">Sasha <em>&amp;</em> Masha</span>
+      <span class="brand-rest"><span class="brand-sep">|</span> <span class="brand-page">Экосистема</span></span>
+    </div>
+    <div class="chrome-actions">
+      <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">Светлая</button>
+      <div class="together-clock" id="together-clock" aria-live="polite">
+        <p class="clock-kicker">вместе с 1 июля 2023</p>
+        <div class="clock-units" id="clock-units"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="hub" id="hub-view">
+      <p class="eyebrow">семейное пространство</p>
+      <h1 class="hero-title">Одна жизнь.<br />Две системы.</h1>
+      <p class="hero-lead">Бюджет, питание и цели — в одной тихой экосистеме Саши и Маши.</p>
+
+      <div class="hub-tiles">
+        <a class="tile" href="https://mariasedovav.github.io/sasha-masha-budget/">
+          <span class="tile-icon" aria-hidden="true">◇</span>
+          <span class="tile-kicker">финансы</span>
+          <strong>Мониторинг бюджета</strong>
+          <span class="tile-copy">FCF, накопления, ипотека и всё, что складывается в общую картину.</span>
+          <span class="tile-go">Открыть</span>
+        </a>
+        <a class="tile" href="https://mariasedovav.github.io/sasha-masha-pitanie/">
+          <span class="tile-icon" aria-hidden="true">○</span>
+          <span class="tile-kicker">меню на двоих</span>
+          <strong>Питание</strong>
+          <span class="tile-copy">Рационы, закупка на двоих и любимые рецепты — без лишнего шума.</span>
+          <span class="tile-go">Открыть</span>
+        </a>
+      </div>
+
+      <button type="button" class="goals-tab" id="open-goals">
+        <span class="goals-star" aria-hidden="true">✦</span>
+        <span class="goals-label">цели</span>
+        <span class="goals-hint">наш общий горизонт</span>
+      </button>
+    </section>
+
+    <section class="goals hidden" id="goals-view" hidden>
+      <button type="button" class="back-hub" id="back-hub">← к экосистеме</button>
+      <p class="eyebrow">карта желаний</p>
+      <h2 class="goals-title">Цели</h2>
+      <p class="goals-lead">Не чеклист, а нить, по которой мы идём. Пусть случится вовремя — или раньше.</p>
+
+      <ol class="timeline">
+        <li class="node node-rose">
+          <div class="node-when">до 2027</div>
+          <div class="node-card">
+            <h3>Счастливо выйти замуж / жениться</h3>
+            <p>Перестать ссориться по мелочам. У нас всё хорошо! Все живы и здоровы, а остальное поправимо, всё можно решить.</p>
+          </div>
+        </li>
+        <li class="node node-sage">
+          <div class="node-when">до Q3 2027</div>
+          <div class="node-card">
+            <h3>Квартира на Тосина с ремонтом</h3>
+            <p>Мы переезжаем в свою квартиру!!</p>
+          </div>
+        </li>
+        <li class="node node-gold">
+          <div class="node-when">до 2028</div>
+          <div class="node-card">
+            <h3>Первый ребёнок</h3>
+            <p>Какое счастье!</p>
+          </div>
+        </li>
+        <li class="node node-sky">
+          <div class="node-when">до 2029</div>
+          <div class="node-card">
+            <h3>Саша — ГД</h3>
+            <p>Или ГД-1, но с внушительным окладом!</p>
+          </div>
+        </li>
+        <li class="node node-gold">
+          <div class="node-when">до 2030</div>
+          <div class="node-card">
+            <h3>Квартира в центре / дом за городом / за рубежом</h3>
+            <p>Мы так планировали — но пусть случится раньше!</p>
+          </div>
+        </li>
+        <li class="node node-sage">
+          <div class="node-when">до 2030</div>
+          <div class="node-card">
+            <h3>Погашенная ипотека на Тосина</h3>
+            <p>Теперь можно и второго планировать :))</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
