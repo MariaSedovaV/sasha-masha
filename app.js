@@ -67,7 +67,7 @@ function showGoals(on) {
   $("goals-view").hidden = !on;
   document.body.classList.toggle("on-goals", on);
   history.replaceState(null, "", on ? "#цели" : location.pathname);
-  if (on) window.scrollTo({ top: 0, behavior: "smooth" });
+  if (on) window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
 }
 
 applyTheme(currentTheme());
