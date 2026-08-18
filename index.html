@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <div class="photo-layer" aria-hidden="true">
@@ -91,6 +91,32 @@
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <button type="button" class="assist-fab" id="assist-open">Помощник</button>
+  <section class="assist-panel hidden" id="assist-panel" hidden>
+    <header class="assist-head">
+      <div>
+        <p class="eyebrow">семейный помощник</p>
+        <strong>Текстом или голосом</strong>
+      </div>
+      <button type="button" class="assist-close" id="assist-close">Закрыть</button>
+    </header>
+    <div class="assist-log" id="assist-log"></div>
+    <div class="assist-chips">
+      <button type="button" data-assist="открой бюджет">бюджет</button>
+      <button type="button" data-assist="открой питание">питание</button>
+      <button type="button" data-assist="открой заметки">заметки</button>
+      <button type="button" data-assist="открой цели">цели</button>
+      <button type="button" data-assist="добавь Маше купить молоко">дело Маше</button>
+      <button type="button" data-assist="запиши 1500 в такси">трата</button>
+    </div>
+    <form class="assist-form" id="assist-form">
+      <input id="assist-input" type="text" maxlength="240" placeholder="Открой бюджет, добавь Саше дело…" autocomplete="off" />
+      <button type="button" class="assist-mic" id="assist-mic">Зажать и говорить</button>
+      <button type="submit">Отправить</button>
+    </form>
+  </section>
+
+  <script src="app.js?v=4"></script>
+  <script src="assistant.js?v=4"></script>
 </body>
 </html>
