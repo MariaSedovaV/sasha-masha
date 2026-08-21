@@ -1,0 +1,39 @@
+name: provision-family-cloud
+on:
+  workflow_dispatch:
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create JSON Blob store
+        run: |
+          set -euo pipefail
+          BODY='{"notes":{"sasha":[],"masha":[]},"budgetAdds":[],"favorites":{},"pinned":{"id":null,"at":0},"rev":0}'
+          curl -sS -D /tmp/hdrs -o /tmp/body -X POST "https://jsonblob.com/api/jsonBlob" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "$BODY" || true
+          echo "=== headers ==="
+          cat /tmp/hdrs
+          echo "=== body ==="
+          cat /tmp/body || true
+          LOC=$(awk 'BEGIN{IGNORECASE=1} /^location:/{gsub("\r",""); print $2}' /tmp/hdrs | tail -1)
+          echo "LOC=$LOC"
+          if [ -z "$LOC" ]; then
+            echo "Failed to create jsonblob" >&2
+            exit 1
+          fi
+          ID="${LOC##*/}"
+          printf '{"store":"jsonblob","id":"%s","url":"%s"}\n' "$ID" "$LOC" > cloud-config.json
+          cat cloud-config.json
+      - name: Commit cloud config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-config.json
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "Add family cloud store id."
+          git push
