@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/provision-remont-cloud.yml"
       - "remont/sync.js"
+      - "cloud-config.json"
 jobs:
   provision:
     runs-on: ubuntu-latest
@@ -15,7 +16,7 @@ jobs:
       - name: Create writable remont store
         run: |
           python3 - <<'PY'
-          import json, os, pathlib, urllib.request, urllib.error
+          import json, pathlib, re, urllib.error, urllib.request
 
           cfg_path = pathlib.Path("cloud-config.json")
           cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -23,47 +24,82 @@ jobs:
               print("already-configured")
               raise SystemExit(0)
 
-          def post(url, payload, headers=None):
+          seed = {"items": [], "rev": 0}
+
+          def request(url, method="GET", payload=None, headers=None):
+              data = None if payload is None else json.dumps(payload).encode("utf-8")
               req = urllib.request.Request(
                   url,
-                  data=json.dumps(payload).encode("utf-8"),
-                  method="POST",
-                  headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "sasha-masha-remont", **(headers or {})},
+                  data=data,
+                  method=method,
+                  headers={
+                      "Content-Type": "application/json",
+                      "Accept": "application/json",
+                      "User-Agent": "sasha-masha-remont",
+                      **(headers or {}),
+                  },
               )
               with urllib.request.urlopen(req, timeout=30) as res:
                   return res.status, res.headers, res.read()
 
+          def https(url):
+              if url.startswith("http://"):
+                  return "https://" + url[len("http://"):]
+              return url
+
           url = ""
+
           try:
-              status, headers, raw = post("https://jsonblob.com/api/jsonBlob", {"items": [], "rev": 0})
+              status, headers, raw = request("https://jsonblob.com/api/jsonBlob", "POST", seed)
               loc = headers.get("Location") or headers.get("location") or ""
               if loc:
-                  if loc.startswith("http://"):
-                      loc = "https://" + loc[len("http://"):]
-                  url = loc
-                  print("jsonblob", status)
+                  url = https(loc)
+                  print("provider jsonblob", status)
           except Exception as err:
               print("jsonblob-failed", type(err).__name__)
 
           if not url:
-              status, headers, raw = post("https://getpantry.cloud/apiv1/pantry", {"name": "sasha-masha-remont"})
-              text = raw.decode("utf-8", "replace")
-              data = {}
               try:
-                  data = json.loads(text)
-              except Exception:
+                  status, headers, raw = request("https://jsonblob.io", "POST", seed)
+                  loc = headers.get("Location") or headers.get("location") or ""
+                  blob = headers.get("x-blob-uuid") or headers.get("X-Blob-Uuid") or ""
+                  if loc:
+                      url = https(loc)
+                  elif blob:
+                      url = "https://jsonblob.io/" + blob
+                  if url:
+                      print("provider jsonblob-io", status)
+              except Exception as err:
+                  print("jsonblob-io-failed", type(err).__name__)
+
+          if not url:
+              try:
+                  status, headers, raw = request("https://getpantry.cloud/apiv1/pantry", "POST", {"name": "sasha-masha-remont"})
+                  text = raw.decode("utf-8", "replace")
                   data = {}
-              pantry_id = data.get("id") or data.get("pantryId") or ""
-              if not pantry_id:
-                  for part in text.replace("\n", " ").split():
-                      if len(part) >= 32 and "-" in part:
-                          pantry_id = part.strip(".,")
-                          break
-              if not pantry_id:
-                  raise SystemExit("pantry-id-missing")
-              url = f"https://getpantry.cloud/apiv1/pantry/{pantry_id}/basket/remont"
-              post(url, {"items": [], "rev": 0})
-              print("pantry-ok")
+                  try:
+                      data = json.loads(text)
+                  except Exception:
+                      data = {}
+                  pantry_id = data.get("id") or data.get("pantryId") or ""
+                  if not pantry_id:
+                      match = re.search(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", text)
+                      pantry_id = match.group(0) if match else ""
+                  if pantry_id:
+                      url = f"https://getpantry.cloud/apiv1/pantry/{pantry_id}/basket/remont"
+                      request(url, "POST", seed)
+                      print("provider pantry")
+              except Exception as err:
+                  print("pantry-failed", type(err).__name__)
+
+          if not url:
+              status, headers, raw = request("https://api.jsonstorage.net/v1/json", "POST", seed)
+              data = json.loads(raw.decode("utf-8", "replace") or "{}")
+              uri = data.get("uri") or ""
+              if not uri:
+                  raise SystemExit("no-writable-store")
+              url = https(uri)
+              print("provider jsonstorage", status)
 
           cfg["remontWrite"] = url
           cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

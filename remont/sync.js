@@ -4,16 +4,16 @@
   const FILE = "remont-cloud.json";
   const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
-  const GIST_API = "https://api.github.com/gists/" + GIST_ID;
   const LOCAL_CLOUD = "sasha-masha-remont-cloud";
   const REMONT_KEY = "sasha-masha-remont";
 
   const listeners = [];
   let snapshot = empty();
-  let storeUrl = "";
-  let gistToken = "";
+  let storeUrl = GIST_RAW;
+  let writeUrl = "";
   let chain = Promise.resolve();
   let started = false;
+  let cloudStatus = { ok: false, error: "", at: 0 };
 
   function empty() {
     return { items: [], rev: 0 };
@@ -67,14 +67,14 @@
     };
   }
 
-  function fromLegacy() {
-    return { items: asItems(readJson(REMONT_KEY, [])), rev: 0 };
-  }
-
   function persistLocal(state) {
     snapshot = clone(state);
     writeJson(LOCAL_CLOUD, snapshot);
     writeJson(REMONT_KEY, snapshot.items || []);
+  }
+
+  function setStatus(ok, error) {
+    cloudStatus = { ok: !!ok, error: error || "", at: Date.now() };
   }
 
   function notify() {
@@ -84,76 +84,63 @@
     try { if (typeof global.sashaRemontReload === "function") global.sashaRemontReload(); } catch {}
   }
 
+  function withCacheBust(url) {
+    return url + (url.indexOf("?") >= 0 ? "&" : "?") + "t=" + Date.now();
+  }
+
   async function loadConfig() {
     storeUrl = GIST_RAW;
-    gistToken = "";
+    writeUrl = "";
     try {
-      const res = await fetch(CONFIG_URL + "?t=" + Date.now(), { cache: "no-store" });
-      if (res.ok) {
-        const cfg = await res.json();
-        if (cfg && cfg.remontRaw) storeUrl = cfg.remontRaw;
-        else if (cfg && cfg.raw) storeUrl = String(cfg.raw).replace(/family-cloud\.json$/, FILE);
-        if (cfg && typeof cfg.token === "string") gistToken = cfg.token.trim();
-      }
+      const res = await fetch(withCacheBust(CONFIG_URL), { cache: "no-store" });
+      if (!res.ok) return;
+      const cfg = await res.json();
+      if (cfg && cfg.remontWrite) writeUrl = String(cfg.remontWrite);
+      if (cfg && cfg.remontRaw) storeUrl = String(cfg.remontRaw);
+      else if (cfg && cfg.raw) storeUrl = String(cfg.raw).replace(/family-cloud\.json$/, FILE);
     } catch {}
-    return true;
+  }
+
+  async function readUrl(url) {
+    const res = await fetch(withCacheBust(url), {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("cloud-get " + res.status);
+    const data = JSON.parse(await res.text());
+    if (!data || typeof data !== "object") throw new Error("bad-cloud");
+    return { items: asItems(data), rev: Number(data.rev || 0) };
   }
 
   async function remoteGet() {
-    if (gistToken) {
-      try {
-        const res = await fetch(GIST_API, {
-          cache: "no-store",
-          headers: {
-            Accept: "application/vnd.github+json",
-            Authorization: "Bearer " + gistToken,
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        });
-        if (res.ok) {
-          const gist = await res.json();
-          const content = gist?.files?.[FILE]?.content;
-          if (content) {
-            const data = JSON.parse(content);
-            return { items: asItems(data), rev: Number(data.rev || 0) };
-          }
-        }
-      } catch {}
-    }
-    const urls = [
-      (storeUrl || GIST_RAW) + "?t=" + Date.now(),
-      PAGES_RAW + "?t=" + Date.now(),
-    ];
+    const urls = [writeUrl, storeUrl, PAGES_RAW].filter(Boolean);
     for (const url of urls) {
       try {
-        const res = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
-        if (!res.ok) continue;
-        const data = JSON.parse(await res.text());
-        if (data && typeof data === "object") {
-          return { items: asItems(data), rev: Number(data.rev || 0) };
-        }
+        return await readUrl(url);
       } catch {}
     }
     return empty();
   }
 
+  function writeMethods(url) {
+    if (/getpantry\.cloud|jsonblob\.io\/?$/.test(url)) return ["POST", "PUT"];
+    return ["PUT", "POST"];
+  }
+
   async function remotePut(state) {
+    if (!writeUrl) throw new Error("cloud-put no-store");
     const encoded = JSON.stringify(state);
-    const headers = {
-      Accept: "application/vnd.github+json",
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    };
-    if (gistToken) headers.Authorization = "Bearer " + gistToken;
-    const gistRes = await fetch(GIST_API, {
-      method: "PATCH",
-      headers,
-      body: JSON.stringify({
-        files: { [FILE]: { content: encoded } },
-      }),
-    });
-    if (gistRes.ok) return true;
-    throw new Error("cloud-put " + gistRes.status);
+    let last = "cloud-put";
+    for (const method of writeMethods(writeUrl)) {
+      const res = await fetch(writeUrl, {
+        method,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: encoded,
+      });
+      if (res.ok) return true;
+      last = "cloud-put " + res.status;
+    }
+    throw new Error(last);
   }
 
   function enqueue(fn) {
@@ -167,22 +154,30 @@
   }
 
   async function pullMergePush(localExtra) {
-    let local = mergeState(fromLegacy(), readJson(LOCAL_CLOUD, empty()));
+    let local = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
     if (localExtra) local = mergeState(local, localExtra);
     persistLocal(local);
 
-    if (!storeUrl) await loadConfig();
+    await loadConfig();
 
     let remote = empty();
     try { remote = await remoteGet() || empty(); } catch { return snapshot; }
 
     let merged = mergeState(remote, local);
     persistLocal(merged);
-    if (core(merged) === core(remote)) return snapshot;
+    if (core(merged) === core(remote)) {
+      setStatus(!!writeUrl, writeUrl ? "" : "cloud-put no-store");
+      return snapshot;
+    }
+    if (!writeUrl) {
+      setStatus(false, "cloud-put no-store");
+      return snapshot;
+    }
     merged.rev = Number(merged.rev || 0) + 1;
     persistLocal(merged);
     try {
       await remotePut(merged);
+      setStatus(true, "");
       const check = await remoteGet();
       const again = mergeState(check, merged);
       if (core(again) !== core(merged)) {
@@ -190,26 +185,30 @@
         persistLocal(again);
         await remotePut(again);
       }
-    } catch {}
+    } catch (err) {
+      setStatus(false, String(err?.message || err || "cloud-put"));
+    }
     return snapshot;
   }
 
   function start() {
     if (started) return;
     started = true;
-    snapshot = mergeState(fromLegacy(), readJson(LOCAL_CLOUD, empty()));
+    snapshot = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
     persistLocal(snapshot);
     enqueue(async () => {
       await pullMergePush();
       notify();
     });
     setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       enqueue(async () => {
         const before = JSON.stringify(snapshot);
+        const beforeStatus = cloudStatus.ok + cloudStatus.error;
         await pullMergePush();
-        if (JSON.stringify(snapshot) !== before) notify();
+        if (JSON.stringify(snapshot) !== before || beforeStatus !== cloudStatus.ok + cloudStatus.error) notify();
       });
-    }, 4000);
+    }, 5000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         enqueue(async () => {
@@ -241,13 +240,14 @@
   global.SashaCloud = {
     start,
     snapshot() { return { remont: clone(snapshot.items) }; },
+    status() { return { ...cloudStatus }; },
     subscribe(fn) { if (typeof fn === "function") listeners.push(fn); },
     setRemont(list) {
       return applyPatch((s) => { s.items = mergeItems(s.items, list); });
     },
   };
 
-  snapshot = mergeState(fromLegacy(), readJson(LOCAL_CLOUD, empty()));
+  snapshot = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
