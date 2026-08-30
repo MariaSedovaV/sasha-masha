@@ -269,27 +269,32 @@ button, input, a { font-family: inherit; }
 }
 .check-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
   min-width: 920px;
 }
-.check-table th {
+.check-table th,
+.check-table td {
   text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.check-table th {
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
   font-weight: 700;
   padding: 14px 10px;
-  border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 35%, transparent);
   position: sticky;
   top: 0;
+  z-index: 1;
 }
-.check-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
+.check-table th:last-child,
+.check-table td:last-child { padding-right: 14px; }
 .check-table tr:last-child td { border-bottom: 0; }
 .check-table tr.bought-row td { opacity: 0.72; }
 .col-room { width: 16%; }
@@ -298,7 +303,7 @@ button, input, a { font-family: inherit; }
 .col-link { width: 18%; }
 .col-price { width: 14%; }
 .col-bought { width: 8%; text-align: center; }
-.col-del { width: 4%; }
+.col-del { width: 48px; text-align: center; }
 
 .cell-input {
   width: 100%;
@@ -317,20 +322,20 @@ button, input, a { font-family: inherit; }
 }
 .cell-name { font-weight: 600; }
 .bought-box {
-  display: grid;
-  place-items: center;
+  text-align: center;
 }
 .bought-box input {
   appearance: none;
+  -webkit-appearance: none;
   width: 22px;
   height: 22px;
-  margin: 0;
+  margin: 0 auto;
   border: 1.5px solid color-mix(in srgb, var(--gold) 55%, var(--line));
   border-radius: 6px;
   background: var(--bg);
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: block;
+  position: relative;
 }
 .bought-box input:checked {
   background: var(--gold);
@@ -338,11 +343,14 @@ button, input, a { font-family: inherit; }
 }
 .bought-box input:checked::after {
   content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
   width: 5px;
   height: 9px;
   border: solid var(--on-accent);
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg) translate(-1px, -1px);
+  transform: rotate(45deg);
 }
 .del-btn {
   border: 0;
@@ -354,6 +362,10 @@ button, input, a { font-family: inherit; }
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 .del-btn:hover { color: var(--rose); background: color-mix(in srgb, var(--rose) 12%, transparent); }
 
