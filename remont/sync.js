@@ -1,16 +1,16 @@
 (function (global) {
   const CONFIG_URL = "https://mariasedovav.github.io/sasha-masha/cloud-config.json";
-  const GIST_ID = "3ed81968af537a456e6586467e4a7a7a";
   const FILE = "remont-cloud.json";
-  const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + FILE;
+  const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/3ed81968af537a456e6586467e4a7a7a/raw/" + FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
+  const DEFAULT_WRITE = "https://jsonblob.io/b8e1c4d2-90a7-4f3b-8c16-6e2a0f1d7c59";
   const LOCAL_CLOUD = "sasha-masha-remont-cloud";
   const REMONT_KEY = "sasha-masha-remont";
 
   const listeners = [];
   let snapshot = empty();
   let storeUrl = GIST_RAW;
-  let writeUrl = "";
+  let writeUrl = DEFAULT_WRITE;
   let chain = Promise.resolve();
   let started = false;
   let cloudStatus = { ok: false, error: "", at: 0 };
@@ -90,7 +90,7 @@
 
   async function loadConfig() {
     storeUrl = GIST_RAW;
-    writeUrl = "";
+    writeUrl = DEFAULT_WRITE;
     try {
       const res = await fetch(withCacheBust(CONFIG_URL), { cache: "no-store" });
       if (!res.ok) return;
@@ -123,7 +123,7 @@
   }
 
   function writeMethods(url) {
-    if (/getpantry\.cloud|jsonblob\.io\/?$/.test(url)) return ["POST", "PUT"];
+    if (/jsonblob\.io|getpantry\.cloud/.test(url)) return ["POST", "PUT"];
     return ["PUT", "POST"];
   }
 
@@ -132,13 +132,17 @@
     const encoded = JSON.stringify(state);
     let last = "cloud-put";
     for (const method of writeMethods(writeUrl)) {
-      const res = await fetch(writeUrl, {
-        method,
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: encoded,
-      });
-      if (res.ok) return true;
-      last = "cloud-put " + res.status;
+      try {
+        const res = await fetch(writeUrl, {
+          method,
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: encoded,
+        });
+        if (res.ok) return true;
+        last = "cloud-put " + res.status;
+      } catch (err) {
+        last = String(err?.message || err || "cloud-put");
+      }
     }
     throw new Error(last);
   }
@@ -161,11 +165,11 @@
     await loadConfig();
 
     let remote = empty();
-    try { remote = await remoteGet() || empty(); } catch { return snapshot; }
+    try { remote = await remoteGet() || empty(); } catch { remote = empty(); }
 
     let merged = mergeState(remote, local);
     persistLocal(merged);
-    if (core(merged) === core(remote)) {
+    if (core(merged) === core(remote) && remote.items && remote.items.length) {
       setStatus(!!writeUrl, writeUrl ? "" : "cloud-put no-store");
       return snapshot;
     }
