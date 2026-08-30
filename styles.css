@@ -248,10 +248,10 @@ body.on-goals .photo-layer img { opacity: 0.2; }
 
 .hub-tiles {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-top: 42px;
-  max-width: 980px;
+  max-width: 760px;
 }
 .tile {
   display: flex;

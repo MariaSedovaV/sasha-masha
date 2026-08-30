@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -42,7 +42,7 @@
     <section class="hub" id="hub-view">
       <p class="eyebrow">семейное пространство</p>
       <h1 class="hero-title">Экосистема</h1>
-      <p class="hero-lead">Бюджет, питание, заметки и цели — в одной тихой экосистеме Саши и Маши.</p>
+      <p class="hero-lead">Бюджет, питание, заметки, ремонт и цели — в одной тихой экосистеме Саши и Маши.</p>
 
       <div class="hub-tiles">
         <a class="tile" href="https://mariasedovav.github.io/sasha-masha-budget/">
@@ -64,6 +64,13 @@
           <span class="tile-kicker">списки дел</span>
           <strong>Заметки</strong>
           <span class="tile-copy">Две половины — Саша и Маша. Дела, галочки и тихий порядок.</span>
+          <span class="tile-go">Открыть</span>
+        </a>
+        <a class="tile" href="https://mariasedovav.github.io/sasha-masha/remont/">
+          <span class="tile-icon" aria-hidden="true">▣</span>
+          <span class="tile-kicker">whitebox</span>
+          <strong>Ремонт</strong>
+          <span class="tile-copy">Чек-лист отделки и мебели по планировке. Около 4 млн на всё — ссылки, галочки и сумма купленного.</span>
           <span class="tile-go">Открыть</span>
         </a>
       </div>
@@ -142,6 +149,7 @@
       <button type="button" data-assist="открой бюджет">бюджет</button>
       <button type="button" data-assist="открой питание">питание</button>
       <button type="button" data-assist="открой заметки">заметки</button>
+      <button type="button" data-assist="открой ремонт">ремонт</button>
       <button type="button" data-assist="открой цели">цели</button>
       <button type="button" data-assist="добавь Маше купить молоко">дело Маше</button>
       <button type="button" data-assist="запиши 1500 в такси">трата</button>
@@ -153,8 +161,8 @@
     </form>
   </section>
 
-  <script src="sync.js?v=7"></script>
+  <script src="sync.js?v=8"></script>
   <script src="app.js?v=6"></script>
-  <script src="assistant.js?v=7"></script>
+  <script src="assistant.js?v=8"></script>
 </body>
 </html>

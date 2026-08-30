@@ -1,0 +1,41 @@
+name: remont-cloud-write
+on:
+  repository_dispatch:
+    types: [remont-cloud]
+  workflow_dispatch:
+    inputs:
+      payload:
+        description: Remont cloud JSON
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write remont cloud
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          PAYLOAD: ${{ toJson(github.event.client_payload.snapshot || github.event.inputs.payload) }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          raw = os.environ.get("PAYLOAD") or ""
+          raw = raw.strip()
+          if not raw or raw in ("null", "None", ""):
+            raise SystemExit("empty payload")
+          data = json.loads(raw)
+          if isinstance(data, str):
+            data = json.loads(data)
+          pathlib.Path("remont-cloud.json").write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add remont-cloud.json
+          git diff --cached --quiet || git commit -m "Sync remont cloud."
+          git push
+          if [ -n "$GIST_TOKEN" ]; then
+            GH_TOKEN="$GIST_TOKEN" gh gist edit 3ed81968af537a456e6586467e4a7a7a --filename remont-cloud.json remont-cloud.json
+          fi
