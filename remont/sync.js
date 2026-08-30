@@ -3,14 +3,17 @@
   const FILE = "remont-cloud.json";
   const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/3ed81968af537a456e6586467e4a7a7a/raw/" + FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
-  const DEFAULT_WRITE = "https://jsonblob.io/b8e1c4d2-90a7-4f3b-8c16-6e2a0f1d7c59";
+  const DEFAULT_WRITES = [
+    "https://api.jsonstorage.net/v1/json/7f3a9c1e2b8d4e0f9a6c5d4b3a2e1f08/remont",
+    "https://jsonblob.io/b8e1c4d2-90a7-4f3b-8c16-6e2a0f1d7c59",
+  ];
   const LOCAL_CLOUD = "sasha-masha-remont-cloud";
   const REMONT_KEY = "sasha-masha-remont";
 
   const listeners = [];
   let snapshot = empty();
   let storeUrl = GIST_RAW;
-  let writeUrl = DEFAULT_WRITE;
+  let writeUrl = DEFAULT_WRITES[0];
   let chain = Promise.resolve();
   let started = false;
   let cloudStatus = { ok: false, error: "", at: 0 };
@@ -90,12 +93,13 @@
 
   async function loadConfig() {
     storeUrl = GIST_RAW;
-    writeUrl = DEFAULT_WRITE;
+    writeUrl = DEFAULT_WRITES[0];
     try {
       const res = await fetch(withCacheBust(CONFIG_URL), { cache: "no-store" });
       if (!res.ok) return;
       const cfg = await res.json();
       if (cfg && cfg.remontWrite) writeUrl = String(cfg.remontWrite);
+      else writeUrl = DEFAULT_WRITES[0];
       if (cfg && cfg.remontRaw) storeUrl = String(cfg.remontRaw);
       else if (cfg && cfg.raw) storeUrl = String(cfg.raw).replace(/family-cloud\.json$/, FILE);
     } catch {}
@@ -112,9 +116,21 @@
     return { items: asItems(data), rev: Number(data.rev || 0) };
   }
 
+  function writeTargets() {
+    const urls = [];
+    if (writeUrl) urls.push(writeUrl);
+    DEFAULT_WRITES.forEach((url) => {
+      if (url && urls.indexOf(url) < 0) urls.push(url);
+    });
+    return urls;
+  }
+
   async function remoteGet() {
-    const urls = [writeUrl, storeUrl, PAGES_RAW].filter(Boolean);
+    const urls = writeTargets().concat([storeUrl, PAGES_RAW]);
+    const seen = {};
     for (const url of urls) {
+      if (!url || seen[url]) continue;
+      seen[url] = true;
       try {
         return await readUrl(url);
       } catch {}
@@ -128,20 +144,24 @@
   }
 
   async function remotePut(state) {
-    if (!writeUrl) throw new Error("cloud-put no-store");
     const encoded = JSON.stringify(state);
-    let last = "cloud-put";
-    for (const method of writeMethods(writeUrl)) {
-      try {
-        const res = await fetch(writeUrl, {
-          method,
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: encoded,
-        });
-        if (res.ok) return true;
-        last = "cloud-put " + res.status;
-      } catch (err) {
-        last = String(err?.message || err || "cloud-put");
+    let last = "cloud-put no-store";
+    for (const url of writeTargets()) {
+      for (const method of writeMethods(url)) {
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: encoded,
+          });
+          if (res.ok) {
+            writeUrl = url;
+            return true;
+          }
+          last = "cloud-put " + res.status;
+        } catch (err) {
+          last = String(err?.message || err || "cloud-put");
+        }
       }
     }
     throw new Error(last);
