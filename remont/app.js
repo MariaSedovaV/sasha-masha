@@ -267,6 +267,8 @@ function setSyncLine() {
   const status = window.SashaCloud && typeof window.SashaCloud.status === "function"
     ? window.SashaCloud.status()
     : null;
+  if (status && status.writeUrl) el.dataset.write = status.writeUrl;
+  if (status && status.error) el.dataset.error = status.error;
   if (status && status.ok) {
     el.textContent = "Облако включено: правки с телефона и ноутбука сходятся в одну таблицу.";
     return;

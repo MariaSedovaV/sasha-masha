@@ -3,6 +3,7 @@
   const FILE = "remont-cloud.json";
   const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/3ed81968af537a456e6586467e4a7a7a/raw/" + FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
+  const JSONBLOB_CREATE = "https://jsonblob.com/api/jsonBlob";
   const DEFAULT_WRITES = [
     "https://api.jsonstorage.net/v1/json/7f3a9c1e2b8d4e0f9a6c5d4b3a2e1f08/remont",
     "https://jsonblob.io/b8e1c4d2-90a7-4f3b-8c16-6e2a0f1d7c59",
@@ -164,7 +165,32 @@
         }
       }
     }
+    try {
+      const created = await createJsonblob(encoded);
+      if (created) {
+        writeUrl = created;
+        return true;
+      }
+    } catch (err) {
+      last = String(err?.message || err || last);
+    }
     throw new Error(last);
+  }
+
+  async function createJsonblob(encoded) {
+    const res = await fetch(JSONBLOB_CREATE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: encoded,
+    });
+    if (!res.ok) throw new Error("cloud-put " + res.status);
+    const loc = res.headers.get("Location") || res.headers.get("location") || "";
+    const id = res.headers.get("X-jsonblob") || res.headers.get("x-jsonblob") || "";
+    let url = loc;
+    if (url.indexOf("http://") === 0) url = "https://" + url.slice(7);
+    if (!url && id) url = JSONBLOB_CREATE + "/" + id;
+    if (!url) throw new Error("cloud-put no-location");
+    return url;
   }
 
   function enqueue(fn) {
@@ -264,7 +290,7 @@
   global.SashaCloud = {
     start,
     snapshot() { return { remont: clone(snapshot.items) }; },
-    status() { return { ...cloudStatus }; },
+    status() { return { ...cloudStatus, writeUrl }; },
     subscribe(fn) { if (typeof fn === "function") listeners.push(fn); },
     setRemont(list) {
       return applyPatch((s) => { s.items = mergeItems(s.items, list); });
