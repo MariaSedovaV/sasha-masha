@@ -1,0 +1,79 @@
+name: provision-remont-cloud
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/provision-remont-cloud.yml"
+      - "remont/sync.js"
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create writable remont store
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, urllib.request, urllib.error
+
+          cfg_path = pathlib.Path("cloud-config.json")
+          cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+          if cfg.get("remontWrite"):
+              print("already-configured")
+              raise SystemExit(0)
+
+          def post(url, payload, headers=None):
+              req = urllib.request.Request(
+                  url,
+                  data=json.dumps(payload).encode("utf-8"),
+                  method="POST",
+                  headers={"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "sasha-masha-remont", **(headers or {})},
+              )
+              with urllib.request.urlopen(req, timeout=30) as res:
+                  return res.status, res.headers, res.read()
+
+          url = ""
+          try:
+              status, headers, raw = post("https://jsonblob.com/api/jsonBlob", {"items": [], "rev": 0})
+              loc = headers.get("Location") or headers.get("location") or ""
+              if loc:
+                  if loc.startswith("http://"):
+                      loc = "https://" + loc[len("http://"):]
+                  url = loc
+                  print("jsonblob", status)
+          except Exception as err:
+              print("jsonblob-failed", type(err).__name__)
+
+          if not url:
+              status, headers, raw = post("https://getpantry.cloud/apiv1/pantry", {"name": "sasha-masha-remont"})
+              text = raw.decode("utf-8", "replace")
+              data = {}
+              try:
+                  data = json.loads(text)
+              except Exception:
+                  data = {}
+              pantry_id = data.get("id") or data.get("pantryId") or ""
+              if not pantry_id:
+                  for part in text.replace("\n", " ").split():
+                      if len(part) >= 32 and "-" in part:
+                          pantry_id = part.strip(".,")
+                          break
+              if not pantry_id:
+                  raise SystemExit("pantry-id-missing")
+              url = f"https://getpantry.cloud/apiv1/pantry/{pantry_id}/basket/remont"
+              post(url, {"items": [], "rev": 0})
+              print("pantry-ok")
+
+          cfg["remontWrite"] = url
+          cfg_path.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+          print("wrote-config")
+          PY
+      - name: Commit cloud config
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add cloud-config.json
+          git diff --cached --quiet && echo "no change" && exit 0
+          git commit -m "Add remont cloud write URL."
+          git push

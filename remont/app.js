@@ -264,8 +264,19 @@ function deleteRow(id) {
 function setSyncLine() {
   const el = $("sync-line");
   if (!el) return;
+  const status = window.SashaCloud && typeof window.SashaCloud.status === "function"
+    ? window.SashaCloud.status()
+    : null;
+  if (status && status.ok) {
+    el.textContent = "Облако включено: правки с телефона и ноутбука сходятся в одну таблицу.";
+    return;
+  }
+  if (status && status.error) {
+    el.textContent = "Пока только на этом устройстве. Облако ещё подключается…";
+    return;
+  }
   el.textContent = syncReady
-    ? "Облако семьи: правки с телефона и ноутбука сходятся в одну таблицу."
+    ? "Сверяем таблицу с облаком…"
     : "Сначала сохраняем на этом устройстве, облако подключается…";
 }
 
