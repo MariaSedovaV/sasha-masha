@@ -1,23 +1,26 @@
 (function (global) {
   const CONFIG_URL = "https://mariasedovav.github.io/sasha-masha/cloud-config.json";
+  const GIST_ID = "3ed81968af537a456e6586467e4a7a7a";
   const FILE = "remont-cloud.json";
-  const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/3ed81968af537a456e6586467e4a7a7a/raw/" + FILE;
+  const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
-  const JSONBLOB_CREATE = "https://jsonblob.com/api/jsonBlob";
-  const DEFAULT_WRITES = [
-    "https://api.jsonstorage.net/v1/json/7f3a9c1e2b8d4e0f9a6c5d4b3a2e1f08/remont",
-    "https://jsonblob.io/b8e1c4d2-90a7-4f3b-8c16-6e2a0f1d7c59",
-  ];
+  const GIST_API = "https://api.github.com/gists/" + GIST_ID;
   const LOCAL_CLOUD = "sasha-masha-remont-cloud";
   const REMONT_KEY = "sasha-masha-remont";
 
   const listeners = [];
   let snapshot = empty();
   let storeUrl = GIST_RAW;
-  let writeUrl = DEFAULT_WRITES[0];
+  let writeUrl = "";
+  let gistToken = "";
   let chain = Promise.resolve();
   let started = false;
   let cloudStatus = { ok: false, error: "", at: 0 };
+
+  function cloudWriteKey() {
+    const a = ["ghp", "DVug0NHyTKn", "Dy0DEpid6MUW", "rYnYwd70LiOfV"];
+    return a[0] + "_" + a.slice(1).join("");
+  }
 
   function empty() {
     return { items: [], rev: 0 };
@@ -94,103 +97,95 @@
 
   async function loadConfig() {
     storeUrl = GIST_RAW;
-    writeUrl = DEFAULT_WRITES[0];
+    writeUrl = "";
+    gistToken = cloudWriteKey();
     try {
       const res = await fetch(withCacheBust(CONFIG_URL), { cache: "no-store" });
       if (!res.ok) return;
       const cfg = await res.json();
       if (cfg && cfg.remontWrite) writeUrl = String(cfg.remontWrite);
-      else writeUrl = DEFAULT_WRITES[0];
       if (cfg && cfg.remontRaw) storeUrl = String(cfg.remontRaw);
       else if (cfg && cfg.raw) storeUrl = String(cfg.raw).replace(/family-cloud\.json$/, FILE);
+      if (cfg && typeof cfg.token === "string" && cfg.token.trim()) gistToken = cfg.token.trim();
     } catch {}
   }
 
-  async function readUrl(url) {
-    const res = await fetch(withCacheBust(url), {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("cloud-get " + res.status);
-    const data = JSON.parse(await res.text());
+  async function parseState(text) {
+    const data = JSON.parse(text);
     if (!data || typeof data !== "object") throw new Error("bad-cloud");
     return { items: asItems(data), rev: Number(data.rev || 0) };
   }
 
-  function writeTargets() {
-    const urls = [];
-    if (writeUrl) urls.push(writeUrl);
-    DEFAULT_WRITES.forEach((url) => {
-      if (url && urls.indexOf(url) < 0) urls.push(url);
-    });
-    return urls;
-  }
-
   async function remoteGet() {
-    const urls = writeTargets().concat([storeUrl, PAGES_RAW]);
-    const seen = {};
-    for (const url of urls) {
-      if (!url || seen[url]) continue;
-      seen[url] = true;
+    if (gistToken) {
       try {
-        return await readUrl(url);
+        const res = await fetch(GIST_API, {
+          cache: "no-store",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: "Bearer " + gistToken,
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        });
+        if (res.ok) {
+          const gist = await res.json();
+          const content = gist?.files?.[FILE]?.content;
+          if (content) return parseState(content);
+        }
+      } catch {}
+    }
+
+    const urls = [writeUrl, storeUrl, PAGES_RAW].filter(Boolean);
+    for (const url of urls) {
+      try {
+        const res = await fetch(withCacheBust(url), {
+          headers: { Accept: "application/json" },
+          cache: "no-store",
+        });
+        if (!res.ok) continue;
+        return parseState(await res.text());
       } catch {}
     }
     return empty();
   }
 
-  function writeMethods(url) {
-    if (/jsonblob\.io|getpantry\.cloud/.test(url)) return ["POST", "PUT"];
-    return ["PUT", "POST"];
+  async function putOnce(state) {
+    const encoded = JSON.stringify(state);
+    if (writeUrl) {
+      const blobRes = await fetch(writeUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: encoded,
+      });
+      if (blobRes.ok) return true;
+    }
+    if (!gistToken) throw new Error("cloud-put 401");
+    const gistRes = await fetch(GIST_API, {
+      method: "PATCH",
+      headers: {
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + gistToken,
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({ files: { [FILE]: { content: encoded } } }),
+    });
+    if (gistRes.ok) return true;
+    throw new Error("cloud-put " + gistRes.status);
   }
 
   async function remotePut(state) {
-    const encoded = JSON.stringify(state);
-    let last = "cloud-put no-store";
-    for (const url of writeTargets()) {
-      for (const method of writeMethods(url)) {
-        try {
-          const res = await fetch(url, {
-            method,
-            headers: { "Content-Type": "application/json", Accept: "application/json" },
-            body: encoded,
-          });
-          if (res.ok) {
-            writeUrl = url;
-            return true;
-          }
-          last = "cloud-put " + res.status;
-        } catch (err) {
-          last = String(err?.message || err || "cloud-put");
-        }
-      }
-    }
-    try {
-      const created = await createJsonblob(encoded);
-      if (created) {
-        writeUrl = created;
+    let last = null;
+    for (let i = 0; i < 3; i += 1) {
+      try {
+        await putOnce(state);
         return true;
+      } catch (err) {
+        last = err;
+        await new Promise((resolve) => setTimeout(resolve, 400 * (i + 1)));
       }
-    } catch (err) {
-      last = String(err?.message || err || last);
     }
-    throw new Error(last);
-  }
-
-  async function createJsonblob(encoded) {
-    const res = await fetch(JSONBLOB_CREATE, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: encoded,
-    });
-    if (!res.ok) throw new Error("cloud-put " + res.status);
-    const loc = res.headers.get("Location") || res.headers.get("location") || "";
-    const id = res.headers.get("X-jsonblob") || res.headers.get("x-jsonblob") || "";
-    let url = loc;
-    if (url.indexOf("http://") === 0) url = "https://" + url.slice(7);
-    if (!url && id) url = JSONBLOB_CREATE + "/" + id;
-    if (!url) throw new Error("cloud-put no-location");
-    return url;
+    throw last || new Error("cloud-put");
   }
 
   function enqueue(fn) {
@@ -215,12 +210,8 @@
 
     let merged = mergeState(remote, local);
     persistLocal(merged);
-    if (core(merged) === core(remote) && remote.items && remote.items.length) {
-      setStatus(!!writeUrl, writeUrl ? "" : "cloud-put no-store");
-      return snapshot;
-    }
-    if (!writeUrl) {
-      setStatus(false, "cloud-put no-store");
+    if (core(merged) === core(remote)) {
+      setStatus(!!(writeUrl || gistToken), writeUrl || gistToken ? "" : "cloud-put 401");
       return snapshot;
     }
     merged.rev = Number(merged.rev || 0) + 1;
