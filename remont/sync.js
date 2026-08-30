@@ -11,6 +11,7 @@
   const listeners = [];
   let snapshot = empty();
   let storeUrl = "";
+  let gistToken = "";
   let chain = Promise.resolve();
   let started = false;
 
@@ -85,18 +86,40 @@
 
   async function loadConfig() {
     storeUrl = GIST_RAW;
+    gistToken = "";
     try {
       const res = await fetch(CONFIG_URL + "?t=" + Date.now(), { cache: "no-store" });
       if (res.ok) {
         const cfg = await res.json();
         if (cfg && cfg.remontRaw) storeUrl = cfg.remontRaw;
         else if (cfg && cfg.raw) storeUrl = String(cfg.raw).replace(/family-cloud\.json$/, FILE);
+        if (cfg && typeof cfg.token === "string") gistToken = cfg.token.trim();
       }
     } catch {}
     return true;
   }
 
   async function remoteGet() {
+    if (gistToken) {
+      try {
+        const res = await fetch(GIST_API, {
+          cache: "no-store",
+          headers: {
+            Accept: "application/vnd.github+json",
+            Authorization: "Bearer " + gistToken,
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        });
+        if (res.ok) {
+          const gist = await res.json();
+          const content = gist?.files?.[FILE]?.content;
+          if (content) {
+            const data = JSON.parse(content);
+            return { items: asItems(data), rev: Number(data.rev || 0) };
+          }
+        }
+      } catch {}
+    }
     const urls = [
       (storeUrl || GIST_RAW) + "?t=" + Date.now(),
       PAGES_RAW + "?t=" + Date.now(),
@@ -116,28 +139,20 @@
 
   async function remotePut(state) {
     const encoded = JSON.stringify(state);
+    const headers = {
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    };
+    if (gistToken) headers.Authorization = "Bearer " + gistToken;
     const gistRes = await fetch(GIST_API, {
       method: "PATCH",
-      headers: {
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
+      headers,
       body: JSON.stringify({
         files: { [FILE]: { content: encoded } },
       }),
     });
     if (gistRes.ok) return true;
-    const dispatchRes = await fetch("https://api.github.com/repos/MariaSedovaV/sasha-masha/dispatches", {
-      method: "POST",
-      headers: {
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      body: JSON.stringify({ event_type: "remont-cloud", client_payload: { snapshot: state } }),
-    });
-    if (dispatchRes.ok || dispatchRes.status === 204) return true;
     throw new Error("cloud-put " + gistRes.status);
   }
 
