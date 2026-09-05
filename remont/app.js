@@ -162,12 +162,31 @@ function escapeHtml(s) {
 
 function renderFilters() {
   const root = $("filters");
-  const chips = ["", ...rooms()];
-  root.innerHTML = chips.map((room) => {
-    const label = room || "Все комнаты";
+  if (!root) return;
+  root.innerHTML = rooms().map((room) => {
     const on = filterRoom === room ? " on" : "";
-    return `<button type="button" class="filter-chip${on}" data-room="${escapeHtml(room)}">${escapeHtml(label)}</button>`;
+    return `<button type="button" class="filter-chip${on}" data-room="${escapeHtml(room)}">${escapeHtml(room)}</button>`;
   }).join("");
+}
+
+function currentTab() {
+  const hash = (location.hash || "").replace("#", "");
+  return hash === "материалы" || hash === "materials" ? "media" : "list";
+}
+
+function showTab(tab) {
+  const list = tab !== "media";
+  const paneList = $("pane-list");
+  const paneMedia = $("pane-media");
+  if (paneList) paneList.hidden = !list;
+  if (paneMedia) paneMedia.hidden = list;
+  document.querySelectorAll(".page-tab").forEach((btn) => {
+    const on = btn.dataset.tab === (list ? "list" : "media");
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  const next = list ? "" : "#материалы";
+  if ((location.hash || "") !== next) history.replaceState(null, "", next || location.pathname + location.search);
 }
 
 function renderTable() {
@@ -261,27 +280,6 @@ function deleteRow(id) {
   renderTable();
 }
 
-function setSyncLine() {
-  const el = $("sync-line");
-  if (!el) return;
-  const status = window.SashaCloud && typeof window.SashaCloud.status === "function"
-    ? window.SashaCloud.status()
-    : null;
-  if (status && status.writeUrl) el.dataset.write = status.writeUrl;
-  if (status && status.error) el.dataset.error = status.error;
-  if (status && status.ok) {
-    el.textContent = "Облако включено: правки с телефона и ноутбука сходятся в одну таблицу.";
-    return;
-  }
-  if (status && status.error) {
-    el.textContent = "Пока только на этом устройстве. Облако ещё подключается…";
-    return;
-  }
-  el.textContent = syncReady
-    ? "Сверяем таблицу с облаком…"
-    : "Сначала сохраняем на этом устройстве, облако подключается…";
-}
-
 function boot() {
   applyTheme(currentTheme());
   $("theme-toggle").addEventListener("click", () => {
@@ -293,11 +291,22 @@ function boot() {
   $("filters").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-room]");
     if (!btn) return;
-    filterRoom = btn.dataset.room || "";
+    const next = btn.dataset.room || "";
+    filterRoom = filterRoom === next ? "" : next;
     renderFilters();
     renderTable();
   });
 
+  document.querySelectorAll(".page-tab").forEach((btn) => {
+    btn.addEventListener("click", () => showTab(btn.dataset.tab));
+  });
+  window.addEventListener("hashchange", () => showTab(currentTab()));
+  window.sashaRemontShowTab = showTab;
+  $("reset-filters").addEventListener("click", () => {
+    filterRoom = "";
+    renderFilters();
+    renderTable();
+  });
   $("add-row").addEventListener("click", addRow);
   $("table-body").addEventListener("input", (e) => {
     const el = e.target;
@@ -317,14 +326,13 @@ function boot() {
 
   loadItems();
   renderTable();
-  setSyncLine();
+  showTab(currentTab());
 
   window.sashaRemontReload = function () {
     const focused = document.activeElement && document.activeElement.classList.contains("cell-input");
     items = mergeById(items, cloudItems());
     writeLocal(items);
     syncReady = true;
-    setSyncLine();
     if (!focused) renderTable();
     else updateTotals();
   };
@@ -337,7 +345,6 @@ function boot() {
     if (!items.some((row) => !row.deleted)) items = mergeById(seedItems(), items);
     persist(true);
     syncReady = true;
-    setSyncLine();
     renderTable();
   }, 700);
 }

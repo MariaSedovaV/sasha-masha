@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=2" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <header class="site-chrome">
@@ -33,57 +33,141 @@
     <section class="intro">
       <p class="eyebrow">квартира на Тосина · whitebox</p>
       <h1>Ремонт</h1>
-      <p class="lead">Чек-лист отделки, фурнитуры и мебели по планировке. Квартира сдаётся whitebox — в смете и финиш, и наполнение. Бюджет на всё — около 4&nbsp;млн ₽.</p>
+      <p class="lead">Чек-лист отделки, фурнитуры и мебели по планировке. Рядом — доска вдохновения и файлы, которые видны на любом устройстве.</p>
     </section>
 
-    <section class="totals" aria-live="polite">
-      <article class="total-card total-bought">
-        <p class="total-kicker">Куплено</p>
-        <strong id="sum-bought">0 ₽</strong>
-        <span id="sum-bought-count">0 позиций</span>
-      </article>
-      <article class="total-card">
-        <p class="total-kicker">В смете</p>
-        <strong id="sum-filled">0 ₽</strong>
-        <span>строки с ценой</span>
-      </article>
-      <article class="total-card">
-        <p class="total-kicker">Бюджет</p>
-        <strong>4 000 000 ₽</strong>
-        <span id="sum-left">осталось 4 000 000 ₽</span>
-      </article>
-    </section>
+    <nav class="page-tabs" role="tablist" aria-label="Разделы ремонта">
+      <button type="button" class="page-tab on" role="tab" id="tab-btn-list" data-tab="list" aria-selected="true">Чек-лист</button>
+      <button type="button" class="page-tab" role="tab" id="tab-btn-media" data-tab="media" aria-selected="false">Дополнительные материалы</button>
+    </nav>
 
-    <section class="toolbar">
-      <div class="filters" id="filters" role="tablist" aria-label="Комнаты"></div>
-      <button type="button" class="add-btn" id="add-row">Добавить предмет</button>
-    </section>
+    <div id="pane-list">
+      <section class="totals" aria-live="polite">
+        <article class="total-card total-bought">
+          <p class="total-kicker">Куплено</p>
+          <strong id="sum-bought">0 ₽</strong>
+          <span id="sum-bought-count">0 позиций</span>
+        </article>
+        <article class="total-card">
+          <p class="total-kicker">В смете</p>
+          <strong id="sum-filled">0 ₽</strong>
+          <span>строки с ценой</span>
+        </article>
+        <article class="total-card">
+          <p class="total-kicker">Бюджет</p>
+          <strong>4 000 000 ₽</strong>
+          <span id="sum-left">осталось 4 000 000 ₽</span>
+        </article>
+      </section>
 
-    <p class="sync-line" id="sync-line">Синхронизация с облаком…</p>
+      <section class="toolbar">
+        <div class="filters" id="filters" role="tablist" aria-label="Комнаты"></div>
+        <div class="toolbar-actions">
+          <button type="button" class="add-btn" id="add-row">Добавить предмет</button>
+          <button type="button" class="reset-btn" id="reset-filters">Сбросить фильтры</button>
+        </div>
+      </section>
 
-    <section class="table-wrap">
-      <table class="check-table" id="check-table">
-        <thead>
-          <tr>
-            <th class="col-room">Комната</th>
-            <th class="col-name">Предмет / материал к покупке</th>
-            <th class="col-qty">Количество</th>
-            <th class="col-link">Ссылка</th>
-            <th class="col-price">Стоимость</th>
-            <th class="col-bought">Куплено</th>
-            <th class="col-del"><span class="sr-only">Удалить</span></th>
-          </tr>
-        </thead>
-        <tbody id="table-body"></tbody>
-      </table>
-    </section>
+      <section class="table-wrap">
+        <table class="check-table" id="check-table">
+          <thead>
+            <tr>
+              <th class="col-room">Комната</th>
+              <th class="col-name">Предмет / материал к покупке</th>
+              <th class="col-qty">Количество</th>
+              <th class="col-link">Ссылка</th>
+              <th class="col-price">Стоимость</th>
+              <th class="col-bought">Куплено</th>
+              <th class="col-del"><span class="sr-only">Удалить</span></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </section>
+    </div>
+
+    <div id="pane-media" hidden>
+      <div class="media-layout">
+        <section class="moodboard" aria-labelledby="mood-title">
+          <div class="media-head">
+            <div>
+              <p class="total-kicker">доска вдохновения</p>
+              <h2 id="mood-title">Фото для ориентира</h2>
+            </div>
+            <button type="button" class="add-btn" id="add-photos">Добавить фото</button>
+          </div>
+          <div class="filters" id="photo-filters" aria-label="Комнаты на фото"></div>
+          <div class="toolbar-actions mood-reset">
+            <button type="button" class="reset-btn" id="reset-photo-filters">Сбросить фильтры</button>
+          </div>
+          <label class="drop-zone" id="photo-drop">
+            <input id="photo-input" type="file" accept="image/*" multiple hidden />
+            <strong>Перетащите фото сюда</strong>
+            <span>или нажмите, чтобы выбрать с телефона и ноутбука</span>
+          </label>
+          <p class="media-empty" id="photo-empty">Пока пусто. Сложите сюда референсы — плитку, свет, мебель, оттенки стен.</p>
+          <div class="masonry" id="photo-grid"></div>
+        </section>
+
+        <aside class="files-panel" aria-labelledby="files-title">
+          <div class="media-head files-head">
+            <div>
+              <p class="total-kicker">документы</p>
+              <h2 id="files-title">Полезные файлы</h2>
+            </div>
+            <button type="button" class="add-btn" id="add-files">Загрузить</button>
+          </div>
+          <label class="drop-zone drop-zone-compact" id="file-drop">
+            <input id="file-input" type="file" multiple hidden />
+            <strong>Сметы, PDF, таблицы</strong>
+            <span>Перетащите файл или выберите</span>
+          </label>
+          <p class="media-empty" id="file-empty">Файлы с любого устройства можно скачать здесь.</p>
+          <ul class="file-list" id="file-list"></ul>
+        </aside>
+      </div>
+    </div>
   </main>
+
+  <dialog class="sheet" id="photo-sheet">
+    <form class="sheet-card" id="photo-form">
+      <p class="total-kicker">новые фото</p>
+      <h2>Выберите комнату</h2>
+      <p class="sheet-lead">Метка нужна, чтобы потом быстро найти референсы кухни, ванной или спальни.</p>
+      <div class="filters" id="sheet-rooms"></div>
+      <label class="sheet-note">
+        <span>Подпись, если нужна</span>
+        <input id="photo-caption" type="text" maxlength="80" placeholder="Например: тёплый дуб, матовая плитка" />
+      </label>
+      <div class="sheet-preview" id="sheet-preview"></div>
+      <p class="sheet-error" id="sheet-error" hidden></p>
+      <div class="sheet-actions">
+        <button type="button" class="reset-btn" id="sheet-cancel">Отмена</button>
+        <button type="submit" class="add-btn" id="sheet-save">Добавить на доску</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="lightbox" id="lightbox">
+    <figure class="lightbox-card">
+      <img id="lightbox-img" alt="" />
+      <figcaption>
+        <span id="lightbox-room"></span>
+        <span id="lightbox-caption"></span>
+      </figcaption>
+      <div class="lightbox-actions">
+        <button type="button" class="reset-btn" id="lightbox-close">Закрыть</button>
+        <button type="button" class="danger-btn" id="lightbox-del">Удалить</button>
+      </div>
+    </figure>
+  </dialog>
 
   <datalist id="room-list"></datalist>
 
   <script src="data.js?v=1"></script>
-  <script src="sync.js?v=17"></script>
-  <script src="app.js?v=3"></script>
-  <script src="assistant.js?v=9"></script>
+  <script src="sync.js?v=19"></script>
+  <script src="app.js?v=5"></script>
+  <script src="media.js?v=2"></script>
+  <script src="assistant.js?v=11"></script>
 </body>
 </html>

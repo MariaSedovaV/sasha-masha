@@ -2,11 +2,15 @@
   const CONFIG_URL = "https://mariasedovav.github.io/sasha-masha/cloud-config.json";
   const GIST_ID = "3ed81968af537a456e6586467e4a7a7a";
   const FILE = "remont-cloud.json";
+  const MEDIA_FILE = "remont-media.json";
   const GIST_RAW = "https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + FILE;
+  const MEDIA_RAW = "https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + MEDIA_FILE;
   const PAGES_RAW = "https://mariasedovav.github.io/sasha-masha/remont-cloud.json";
   const GIST_API = "https://api.github.com/gists/" + GIST_ID;
   const LOCAL_CLOUD = "sasha-masha-remont-cloud";
   const REMONT_KEY = "sasha-masha-remont";
+  const IDB_NAME = "sasha-masha-remont";
+  const IDB_STORE = "kv";
 
   const listeners = [];
   let snapshot = empty();
@@ -23,7 +27,7 @@
   }
 
   function empty() {
-    return { items: [], rev: 0 };
+    return { items: [], photos: [], files: [], rev: 0, mediaRev: 0 };
   }
 
   function clone(v) {
@@ -42,6 +46,43 @@
 
   function writeJson(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  }
+
+  function openDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE);
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbRead(key, fallback) {
+    try {
+      const db = await openDb();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(IDB_STORE, "readonly");
+        const req = tx.objectStore(IDB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result == null ? fallback : req.result);
+        req.onerror = () => resolve(fallback);
+      });
+    } catch {
+      return fallback;
+    }
+  }
+
+  async function idbWrite(key, value) {
+    try {
+      const db = await openDb();
+      await new Promise((resolve) => {
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch {}
   }
 
   function stamp(item) {
@@ -65,19 +106,29 @@
     return [];
   }
 
+  function asList(raw, key) {
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw?.[key])) return raw[key];
+    return [];
+  }
+
   function mergeState(a, b) {
     const left = a || empty();
     const right = b || empty();
     return {
       items: mergeItems(left.items || asItems(left), right.items || asItems(right)),
+      photos: mergeItems(left.photos || asList(left, "photos"), right.photos || asList(right, "photos")),
+      files: mergeItems(left.files || asList(left, "files"), right.files || asList(right, "files")),
       rev: Math.max(Number(left.rev || 0), Number(right.rev || 0)),
+      mediaRev: Math.max(Number(left.mediaRev || 0), Number(right.mediaRev || 0)),
     };
   }
 
   function persistLocal(state) {
     snapshot = clone(state);
-    writeJson(LOCAL_CLOUD, snapshot);
+    writeJson(LOCAL_CLOUD, { items: snapshot.items, rev: snapshot.rev });
     writeJson(REMONT_KEY, snapshot.items || []);
+    idbWrite("media", { photos: snapshot.photos, files: snapshot.files, mediaRev: snapshot.mediaRev });
   }
 
   function setStatus(ok, error) {
@@ -85,10 +136,16 @@
   }
 
   function notify() {
+    const payload = {
+      remont: clone(snapshot.items),
+      photos: clone(snapshot.photos),
+      files: clone(snapshot.files),
+    };
     listeners.forEach((fn) => {
-      try { fn({ remont: clone(snapshot.items) }); } catch {}
+      try { fn(payload); } catch {}
     });
     try { if (typeof global.sashaRemontReload === "function") global.sashaRemontReload(); } catch {}
+    try { if (typeof global.sashaRemontMediaReload === "function") global.sashaRemontMediaReload(); } catch {}
   }
 
   function withCacheBust(url) {
@@ -110,13 +167,36 @@
     } catch {}
   }
 
-  async function parseState(text) {
-    const data = JSON.parse(text);
+  function parseChecklist(data) {
+    return {
+      items: asItems(data),
+      rev: Number(data?.rev || 0),
+    };
+  }
+
+  function parseMedia(data) {
+    return {
+      photos: asList(data, "photos"),
+      files: asList(data, "files"),
+      mediaRev: Number(data?.mediaRev || data?.rev || 0),
+    };
+  }
+
+  async function fetchJson(url) {
+    const res = await fetch(withCacheBust(url), {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error("cloud-get " + res.status);
+    const data = JSON.parse(await res.text());
     if (!data || typeof data !== "object") throw new Error("bad-cloud");
-    return { items: asItems(data), rev: Number(data.rev || 0) };
+    return data;
   }
 
   async function remoteGet() {
+    let check = { items: [], rev: 0 };
+    let media = { photos: [], files: [], mediaRev: 0 };
+
     if (gistToken) {
       try {
         const res = await fetch(GIST_API, {
@@ -129,37 +209,36 @@
         });
         if (res.ok) {
           const gist = await res.json();
-          const content = gist?.files?.[FILE]?.content;
-          if (content) return parseState(content);
+          if (gist?.files?.[FILE]?.content) check = parseChecklist(JSON.parse(gist.files[FILE].content));
+          if (gist?.files?.[MEDIA_FILE]?.content) media = parseMedia(JSON.parse(gist.files[MEDIA_FILE].content));
+          return { ...empty(), ...check, ...media };
         }
       } catch {}
     }
 
-    const urls = [writeUrl, storeUrl, PAGES_RAW].filter(Boolean);
-    for (const url of urls) {
-      try {
-        const res = await fetch(withCacheBust(url), {
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-        });
-        if (!res.ok) continue;
-        return parseState(await res.text());
-      } catch {}
+    for (const url of [writeUrl, storeUrl, PAGES_RAW].filter(Boolean)) {
+      try { check = parseChecklist(await fetchJson(url)); break; } catch {}
     }
-    return empty();
+    try { media = parseMedia(await fetchJson(MEDIA_RAW)); } catch {}
+    return { ...empty(), ...check, ...media };
   }
 
-  async function putOnce(state) {
-    const encoded = JSON.stringify(state);
-    if (writeUrl) {
-      const blobRes = await fetch(writeUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: encoded,
-      });
-      if (blobRes.ok) return true;
-    }
+  async function putOnce(state, parts) {
     if (!gistToken) throw new Error("cloud-put 401");
+    const files = {};
+    if (parts.items) {
+      files[FILE] = { content: JSON.stringify({ items: state.items || [], rev: Number(state.rev || 0) }) };
+    }
+    if (parts.media) {
+      files[MEDIA_FILE] = {
+        content: JSON.stringify({
+          photos: state.photos || [],
+          files: state.files || [],
+          mediaRev: Number(state.mediaRev || 0),
+        }),
+      };
+    }
+    if (!Object.keys(files).length) return true;
     const gistRes = await fetch(GIST_API, {
       method: "PATCH",
       headers: {
@@ -168,17 +247,17 @@
         Authorization: "Bearer " + gistToken,
         "X-GitHub-Api-Version": "2022-11-28",
       },
-      body: JSON.stringify({ files: { [FILE]: { content: encoded } } }),
+      body: JSON.stringify({ files }),
     });
     if (gistRes.ok) return true;
     throw new Error("cloud-put " + gistRes.status);
   }
 
-  async function remotePut(state) {
+  async function remotePut(state, parts) {
     let last = null;
     for (let i = 0; i < 3; i += 1) {
       try {
-        await putOnce(state);
+        await putOnce(state, parts);
         return true;
       } catch (err) {
         last = err;
@@ -194,12 +273,24 @@
     return run;
   }
 
-  function core(state) {
+  function coreItems(state) {
     return JSON.stringify({ items: state?.items || [] });
   }
 
+  function coreMedia(state) {
+    return JSON.stringify({ photos: state?.photos || [], files: state?.files || [] });
+  }
+
+  async function localBundle() {
+    const media = await idbRead("media", { photos: [], files: [], mediaRev: 0 });
+    return mergeState(
+      { items: asItems(readJson(REMONT_KEY, [])), rev: 0 },
+      mergeState(readJson(LOCAL_CLOUD, empty()), media)
+    );
+  }
+
   async function pullMergePush(localExtra) {
-    let local = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
+    let local = await localBundle();
     if (localExtra) local = mergeState(local, localExtra);
     persistLocal(local);
 
@@ -210,22 +301,19 @@
 
     let merged = mergeState(remote, local);
     persistLocal(merged);
-    if (core(merged) === core(remote)) {
+
+    const itemsChanged = coreItems(merged) !== coreItems(remote);
+    const mediaChanged = coreMedia(merged) !== coreMedia(remote);
+    if (!itemsChanged && !mediaChanged) {
       setStatus(!!(writeUrl || gistToken), writeUrl || gistToken ? "" : "cloud-put 401");
       return snapshot;
     }
-    merged.rev = Number(merged.rev || 0) + 1;
+    if (itemsChanged) merged.rev = Number(merged.rev || 0) + 1;
+    if (mediaChanged) merged.mediaRev = Number(merged.mediaRev || 0) + 1;
     persistLocal(merged);
     try {
-      await remotePut(merged);
+      await remotePut(merged, { items: itemsChanged, media: mediaChanged });
       setStatus(true, "");
-      const check = await remoteGet();
-      const again = mergeState(check, merged);
-      if (core(again) !== core(merged)) {
-        again.rev = Number(again.rev || 0) + 1;
-        persistLocal(again);
-        await remotePut(again);
-      }
     } catch (err) {
       setStatus(false, String(err?.message || err || "cloud-put"));
     }
@@ -235,9 +323,9 @@
   function start() {
     if (started) return;
     started = true;
-    snapshot = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
-    persistLocal(snapshot);
     enqueue(async () => {
+      snapshot = await localBundle();
+      persistLocal(snapshot);
       await pullMergePush();
       notify();
     });
@@ -249,7 +337,7 @@
         await pullMergePush();
         if (JSON.stringify(snapshot) !== before || beforeStatus !== cloudStatus.ok + cloudStatus.error) notify();
       });
-    }, 5000);
+    }, 8000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") {
         enqueue(async () => {
@@ -280,15 +368,29 @@
 
   global.SashaCloud = {
     start,
-    snapshot() { return { remont: clone(snapshot.items) }; },
+    snapshot() {
+      return {
+        remont: clone(snapshot.items),
+        photos: clone(snapshot.photos),
+        files: clone(snapshot.files),
+      };
+    },
     status() { return { ...cloudStatus, writeUrl }; },
     subscribe(fn) { if (typeof fn === "function") listeners.push(fn); },
     setRemont(list) {
       return applyPatch((s) => { s.items = mergeItems(s.items, list); });
     },
+    setMedia(photoList, fileList) {
+      return applyPatch((s) => {
+        s.photos = mergeItems(s.photos, photoList);
+        s.files = mergeItems(s.files, fileList);
+      });
+    },
   };
 
-  snapshot = mergeState({ items: asItems(readJson(REMONT_KEY, [])), rev: 0 }, readJson(LOCAL_CLOUD, empty()));
+  enqueue(async () => {
+    snapshot = await localBundle();
+  });
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
