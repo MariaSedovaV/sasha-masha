@@ -61,27 +61,38 @@ function renderClock() {
     .join("");
 }
 
-function showGoals(on) {
-  $("hub-view").classList.toggle("hidden", on);
-  $("goals-view").classList.toggle("hidden", !on);
-  $("goals-view").hidden = !on;
-  document.body.classList.toggle("on-goals", on);
-  history.replaceState(null, "", on ? "#цели" : location.pathname);
-  if (on) window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+function showView(name) {
+  const views = ["hub", "goals", "calendar"];
+  views.forEach((v) => {
+    const el = $(v + "-view");
+    if (!el) return;
+    const on = v === name;
+    el.classList.toggle("hidden", !on);
+    el.hidden = !on;
+  });
+  document.body.classList.toggle("on-goals", name === "goals");
+  document.body.classList.toggle("on-calendar", name === "calendar");
+  const hash = name === "goals" ? "#цели" : name === "calendar" ? "#календарь" : location.pathname;
+  history.replaceState(null, "", hash);
+  if (name !== "hub") window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
+  if (name === "calendar") window.sashaCalendarReload?.();
 }
 
 applyTheme(currentTheme());
 $("theme-toggle").addEventListener("click", () => {
   applyTheme(currentTheme() === "light" ? "dark" : "light");
 });
-$("open-goals").addEventListener("click", () => showGoals(true));
-$("back-hub").addEventListener("click", () => showGoals(false));
+$("open-goals").addEventListener("click", () => showView("goals"));
+$("open-calendar").addEventListener("click", () => showView("calendar"));
+$("back-hub").addEventListener("click", () => showView("hub"));
+$("back-hub-cal").addEventListener("click", () => showView("hub"));
 $("home-link")?.addEventListener("click", (e) => {
   e.preventDefault();
-  showGoals(false);
+  showView("hub");
 });
 
-if (location.hash === "#цели" || location.hash === "#goals") showGoals(true);
+if (location.hash === "#цели" || location.hash === "#goals") showView("goals");
+else if (location.hash === "#календарь" || location.hash === "#calendar") showView("calendar");
 
 renderClock();
 setInterval(renderClock, 1000);

@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -39,7 +39,7 @@
     <section class="hub" id="hub-view">
       <p class="eyebrow">семейное пространство</p>
       <h1 class="hero-title">Экосистема</h1>
-      <p class="hero-lead">Бюджет, питание, заметки, ремонт и цели — в одной тихой экосистеме Саши и Маши.</p>
+      <p class="hero-lead">Бюджет, питание, заметки, ремонт, календарь и цели — в одной тихой экосистеме Саши и Маши.</p>
 
       <div class="hub-tiles">
         <a class="tile" href="https://mariasedovav.github.io/sasha-masha-budget/">
@@ -72,11 +72,18 @@
         </a>
       </div>
 
-      <button type="button" class="goals-tab" id="open-goals">
-        <span class="goals-star" aria-hidden="true">✦</span>
-        <span class="goals-label">цели</span>
-        <span class="goals-hint">наш общий горизонт</span>
-      </button>
+      <div class="hub-links">
+        <button type="button" class="goals-tab" id="open-calendar">
+          <span class="goals-star" aria-hidden="true">◷</span>
+          <span class="goals-label">календарь</span>
+          <span class="goals-hint">готовка и встречи</span>
+        </button>
+        <button type="button" class="goals-tab" id="open-goals">
+          <span class="goals-star" aria-hidden="true">✦</span>
+          <span class="goals-label">цели</span>
+          <span class="goals-hint">наш общий горизонт</span>
+        </button>
+      </div>
     </section>
 
     <section class="goals hidden" id="goals-view" hidden>
@@ -130,7 +137,92 @@
         </li>
       </ol>
     </section>
+
+    <section class="calendar hidden" id="calendar-view" hidden>
+      <button type="button" class="back-hub" id="back-hub-cal">← к экосистеме</button>
+      <p class="eyebrow">семейный ритм</p>
+      <h2 class="goals-title">Календарь</h2>
+      <p class="goals-lead" id="cal-lead">Готовка из рациона недели и ваши события — общие на всех устройствах.</p>
+
+      <div class="cal-toolbar">
+        <div class="cal-nav">
+          <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="Предыдущий месяц">‹</button>
+          <h3 id="cal-month"></h3>
+          <button type="button" class="cal-nav-btn" id="cal-next" aria-label="Следующий месяц">›</button>
+        </div>
+        <button type="button" class="cal-today" id="cal-today">Сегодня</button>
+      </div>
+
+      <div class="cal-board">
+        <div class="cal-grid" id="cal-grid"></div>
+        <aside class="cal-agenda" id="cal-agenda"></aside>
+      </div>
+    </section>
   </main>
+
+  <section class="cal-sheet hidden" id="cal-sheet" hidden>
+    <div class="cal-sheet-card">
+      <header class="cal-sheet-head">
+        <div>
+          <p class="eyebrow" id="cal-sheet-kicker">новое событие</p>
+          <strong id="cal-sheet-title">Что заносим</strong>
+        </div>
+        <button type="button" class="cal-sheet-close" id="cal-sheet-close">Закрыть</button>
+      </header>
+      <div id="cal-cook-wrap" hidden></div>
+      <form class="cal-form" id="cal-form">
+        <label class="field">
+          <span>Название</span>
+          <input id="cal-title" name="title" maxlength="120" required placeholder="Ужин у родителей, театр, встреча…" autocomplete="off" />
+        </label>
+        <fieldset class="who-toggle">
+          <legend>Кто заносит</legend>
+          <label class="who-chip masha">
+            <input type="radio" name="cal-who" value="masha" />
+            <span>Маша</span>
+          </label>
+          <label class="who-chip sasha">
+            <input type="radio" name="cal-who" value="sasha" />
+            <span>Саша</span>
+          </label>
+        </fieldset>
+        <div class="cal-when">
+          <label class="field">
+            <span>Дата</span>
+            <input id="cal-date" name="date" type="date" required />
+          </label>
+          <label class="allday">
+            <input id="cal-allday" type="checkbox" />
+            <span>Весь день</span>
+          </label>
+        </div>
+        <div class="cal-when" id="cal-times">
+          <label class="field">
+            <span>Начало</span>
+            <input id="cal-start" name="start" type="time" />
+          </label>
+          <label class="field">
+            <span>Конец <em>необязательно</em></span>
+            <input id="cal-end" name="end" type="time" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Место <em>необязательно</em></span>
+          <input id="cal-place" name="place" maxlength="120" placeholder="Дом, ресторан, адрес…" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Заметка <em>необязательно</em></span>
+          <textarea id="cal-note" name="note" rows="3" maxlength="400" placeholder="Коротко: что взять, к кому, во сколько выходить"></textarea>
+        </label>
+        <p class="cal-error" id="cal-error" role="alert"></p>
+        <div class="cal-form-actions">
+          <button type="submit" class="cal-save">Сохранить</button>
+          <button type="button" class="cal-cancel" id="cal-cancel">Отмена</button>
+          <button type="button" class="cal-delete" id="cal-delete" hidden>Удалить</button>
+        </div>
+      </form>
+    </div>
+  </section>
 
   <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
   <section class="assist-panel hidden" id="assist-panel" hidden>
@@ -147,6 +239,7 @@
       <button type="button" data-assist="открой питание">питание</button>
       <button type="button" data-assist="открой заметки">заметки</button>
       <button type="button" data-assist="открой ремонт">ремонт</button>
+      <button type="button" data-assist="открой календарь">календарь</button>
       <button type="button" data-assist="открой цели">цели</button>
       <button type="button" data-assist="добавь Маше купить молоко">дело Маше</button>
       <button type="button" data-assist="запиши 1500 в такси">трата</button>
@@ -158,8 +251,10 @@
     </form>
   </section>
 
-  <script src="sync.js?v=10"></script>
-  <script src="app.js?v=7"></script>
-  <script src="assistant.js?v=11"></script>
+  <script src="sync.js?v=11"></script>
+  <script src="cooking-index.js?v=1"></script>
+  <script src="calendar.js?v=1"></script>
+  <script src="app.js?v=8"></script>
+  <script src="assistant.js?v=12"></script>
 </body>
 </html>
