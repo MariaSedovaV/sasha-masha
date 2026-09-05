@@ -12,6 +12,14 @@
     СБ: { cookDay: "ЧТ", cookTime: "18:00", cover: "ПТ–СБ" },
     ВС: { cookDay: "ВС", cookTime: "11:00", cover: "ВС" },
   };
+  const EAT_TIMES = {
+    Завтрак: "08:00",
+    Обед: "13:00",
+    Ужин: "19:00",
+    "Перекус 1": "10:30",
+    "Перекус 2": "16:00",
+    "Перекус 3": "21:00",
+  };
   const WHO_KEY = "sasha-masha-calendar-who";
   const PITANIE = "https://mariasedovav.github.io/sasha-masha-pitanie/";
 
@@ -98,49 +106,102 @@
     return pad(n.getHours()) + ":00";
   }
 
-  function cookingItems() {
+  function planMatchesPinned(plan, pinned) {
+    return Boolean(plan) && (!pinned || String(plan.rationId) === String(pinned));
+  }
+
+  function scheduleLookup(rationId, dayId, mealId) {
+    const key = "r" + rationId + "|" + dayId + "|" + mealId;
+    const custom = cloud().schedules?.[key];
+    if (custom && !custom.deleted) return custom;
+    return null;
+  }
+
+  function buildPlanFromIndex(pinned, plan) {
+    const ration = (window.COOKING_INDEX || []).find((r) => String(r.id) === String(pinned));
+    if (!ration) {
+      return {
+        rationId: pinned || null,
+        title: plan?.title || "",
+        items: plan?.items || [],
+        meals: plan?.meals || [],
+      };
+    }
+    const items = [];
+    const meals = [];
+    const seenCook = new Set();
+    (ration.days || []).forEach((day) => {
+      (day.meals || []).forEach((meal) => {
+        const custom = scheduleLookup(ration.id, day.id, meal.id);
+        const isMain = meal.id === "Обед" || meal.id === "Ужин";
+        const isBreakfast = meal.id === "Завтрак";
+        if (isMain || isBreakfast) {
+          let cookDay = day.id;
+          let time = "07:30";
+          let cover = "";
+          let kind = "same-day";
+          if (isMain) {
+            const block = COOK_BLOCKS[day.id] || COOK_BLOCKS.ВС;
+            cookDay = block.cookDay;
+            time = block.cookTime;
+            cover = block.cover;
+            kind = "batch";
+          }
+          if (custom?.cook) {
+            if (custom.cook.time) time = custom.cook.time;
+            if (custom.cook.dayId) cookDay = custom.cook.dayId;
+            if (custom.cook.cover) cover = custom.cook.cover;
+            if (custom.cook.kind) kind = custom.cook.kind;
+          }
+          if (kind !== "none" && time) {
+            const key = cookDay + "|" + time + "|" + meal.id + "|" + meal.title + "|" + cover;
+            if (!seenCook.has(key)) {
+              seenCook.add(key);
+              items.push({
+                weekday: cookDay,
+                time,
+                mealType: meal.id,
+                title: meal.title,
+                cover,
+                kind,
+                eatDay: day.id,
+              });
+            }
+          }
+        }
+        const eatTime = custom?.eat?.time || EAT_TIMES[meal.id] || "12:00";
+        const eatDay = custom?.eat?.dayId || day.id;
+        if (eatTime) {
+          meals.push({
+            weekday: eatDay,
+            time: eatTime,
+            mealType: meal.id,
+            title: meal.title,
+          });
+        }
+      });
+    });
+    return { rationId: ration.id, title: ration.title, items, meals };
+  }
+
+  function nutritionPlan() {
     const snap = cloud();
     const pinned = snap.pinned?.id;
     const plan = snap.cookingPlan;
-    if (plan && Array.isArray(plan.items) && plan.items.length && (!pinned || String(plan.rationId) === String(pinned))) {
-      return { rationId: plan.rationId, title: plan.title || "", items: plan.items };
+    const fromCloud = planMatchesPinned(plan, pinned);
+    const cloudCook = fromCloud && Array.isArray(plan.items) && plan.items.length ? plan.items : null;
+    const cloudMeals = fromCloud && Array.isArray(plan.meals) && plan.meals.length ? plan.meals : null;
+    if (cloudCook && cloudMeals) {
+      return { rationId: plan.rationId, title: plan.title || "", items: cloudCook, meals: cloudMeals };
     }
-    if (!pinned) return { rationId: null, title: "", items: [] };
-    const ration = (window.COOKING_INDEX || []).find((r) => String(r.id) === String(pinned));
-    if (!ration) return { rationId: pinned, title: plan?.title || "", items: plan?.items || [] };
-    const items = [];
-    const seen = new Set();
-    (ration.days || []).forEach((day) => {
-      (day.meals || []).forEach((meal) => {
-        const isMain = meal.id === "Обед" || meal.id === "Ужин";
-        const isBreakfast = meal.id === "Завтрак";
-        if (!isMain && !isBreakfast) return;
-        let cookDay = day.id;
-        let time = "07:30";
-        let cover = "";
-        let kind = "same-day";
-        if (isMain) {
-          const block = COOK_BLOCKS[day.id] || COOK_BLOCKS.ВС;
-          cookDay = block.cookDay;
-          time = block.cookTime;
-          cover = block.cover;
-          kind = "batch";
-        }
-        const key = cookDay + "|" + time + "|" + meal.id + "|" + meal.title + "|" + cover;
-        if (seen.has(key)) return;
-        seen.add(key);
-        items.push({
-          weekday: cookDay,
-          time,
-          mealType: meal.id,
-          title: meal.title,
-          cover,
-          kind,
-          eatDay: day.id,
-        });
-      });
-    });
-    return { rationId: ration.id, title: ration.title, items };
+    if (!pinned && !cloudCook && !cloudMeals) return { rationId: null, title: "", items: [], meals: [] };
+    const built = buildPlanFromIndex(pinned, plan);
+    return {
+      rationId: built.rationId,
+      title: built.title || plan?.title || "",
+      items: cloudCook || built.items,
+      meals: cloudMeals || built.meals,
+    };
   }
 
   function userEvents() {
@@ -148,7 +209,7 @@
   }
 
   function cookEventsOn(iso) {
-    const { items } = cookingItems();
+    const { items } = nutritionPlan();
     const code = weekdayCode(parseIso(iso));
     return items
       .filter((item) => item.weekday === code && item.time)
@@ -163,8 +224,29 @@
         mealType: item.mealType,
         cover: item.cover || "",
         cookKind: item.kind,
-      }))
-      .sort((a, b) => String(a.start).localeCompare(String(b.start)));
+      }));
+  }
+
+  function mealEventsOn(iso) {
+    const { meals } = nutritionPlan();
+    const code = weekdayCode(parseIso(iso));
+    return meals
+      .filter((item) => item.weekday === code && item.time)
+      .map((item) => ({
+        id: "eat|" + iso + "|" + item.weekday + "|" + item.time + "|" + item.mealType + "|" + item.title,
+        kind: "eat",
+        date: iso,
+        start: item.time,
+        end: "",
+        allDay: false,
+        title: item.title,
+        mealType: item.mealType,
+      }));
+  }
+
+  function timeKey(item) {
+    if (item.allDay) return "00:00";
+    return item.start || "99:99";
   }
 
   function userEventsOn(iso) {
@@ -179,9 +261,11 @@
 
   function marksFor(iso) {
     const cook = cookEventsOn(iso).length > 0;
+    const eat = mealEventsOn(iso).length > 0;
     const users = userEventsOn(iso);
     return {
       cook,
+      eat,
       masha: users.some((e) => e.who === "masha"),
       sasha: users.some((e) => e.who === "sasha"),
     };
@@ -212,10 +296,10 @@
   function renderLead() {
     const lead = $("cal-lead");
     if (!lead) return;
-    const plan = cookingItems();
+    const plan = nutritionPlan();
     const bits = [];
-    if (plan.title) bits.push("готовка по рациону «" + plan.title + "»");
-    else bits.push("закрепите рацион в Питании — график готовки появится сам");
+    if (plan.title) bits.push("приготовление и приёмы по рациону «" + plan.title + "»");
+    else bits.push("закрепите рацион в Питании — график еды появится сам");
     bits.push(syncLabel());
     lead.textContent = bits.join(". ") + ".";
   }
@@ -238,7 +322,8 @@
         iso === state.selected ? "is-selected" : "",
       ].filter(Boolean).join(" ");
       const dots = [
-        marks.cook ? '<i class="dot cook" title="готовка"></i>' : "",
+        marks.cook ? '<i class="dot cook" title="Приготовление еды"></i>' : "",
+        marks.eat ? '<i class="dot eat" title="Приём пищи"></i>' : "",
         marks.masha ? '<i class="dot masha" title="Маша"></i>' : "",
         marks.sasha ? '<i class="dot sasha" title="Саша"></i>' : "",
       ].join("");
@@ -266,31 +351,43 @@
     const box = $("cal-agenda");
     if (!box) return;
     const cook = cookEventsOn(state.selected);
+    const meals = mealEventsOn(state.selected);
     const users = userEventsOn(state.selected);
-    const cookHtml = cook.length
-      ? cook.map((item) => {
-        const cover = item.cover ? ` на ${escapeHtml(item.cover)}` : "";
-        return `<button type="button" class="cal-item cook" data-cook="${escapeHtml(item.id)}">
-          <span class="cal-item-time">${escapeHtml(item.start)}</span>
-          <span class="cal-item-body">
-            <em>готовка · ${escapeHtml(item.mealType)}</em>
-            <strong>${escapeHtml(item.title)}</strong>
-            <small>партия${cover}</small>
-          </span>
-        </button>`;
-      }).join("")
-      : "";
-    const userHtml = users.length
-      ? users.map((item) => `<button type="button" class="cal-item ${item.who || "masha"}" data-id="${escapeHtml(item.id)}">
+    const rows = [...cook, ...meals, ...users].sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
+    const listHtml = rows.length
+      ? rows.map((item) => {
+        if (item.kind === "cook") {
+          const cover = item.cover ? ` на ${escapeHtml(item.cover)}` : "";
+          const batch = item.cookKind === "same-day" ? "в тот же день" : "партия" + cover;
+          return `<button type="button" class="cal-item cook" data-cook="${escapeHtml(item.id)}">
+            <span class="cal-item-time">${escapeHtml(item.start)}</span>
+            <span class="cal-item-body">
+              <em>Приготовление еды · ${escapeHtml(item.mealType)}</em>
+              <strong>${escapeHtml(item.title)}</strong>
+              <small>${batch}</small>
+            </span>
+          </button>`;
+        }
+        if (item.kind === "eat") {
+          return `<button type="button" class="cal-item eat" data-eat="${escapeHtml(item.id)}">
+            <span class="cal-item-time">${escapeHtml(item.start)}</span>
+            <span class="cal-item-body">
+              <em>Приём пищи · ${escapeHtml(item.mealType)}</em>
+              <strong>${escapeHtml(item.title)}</strong>
+            </span>
+          </button>`;
+        }
+        return `<button type="button" class="cal-item ${item.who || "masha"}" data-id="${escapeHtml(item.id)}">
           <span class="cal-item-time">${escapeHtml(eventTimeLabel(item))}</span>
           <span class="cal-item-body">
             <em>${escapeHtml(whoLabel(item.who))}</em>
             <strong>${escapeHtml(item.title)}</strong>
             ${item.place ? `<small>${escapeHtml(item.place)}</small>` : ""}
           </span>
-        </button>`).join("")
+        </button>`;
+      }).join("")
       : "";
-    const empty = !cook.length && !users.length
+    const empty = !rows.length
       ? `<p class="cal-empty">В этот день пока тихо. Можно добавить событие — оно появится у обоих.</p>`
       : "";
     box.innerHTML = `
@@ -302,11 +399,12 @@
         <button type="button" class="cal-add" id="cal-add">+ событие</button>
       </div>
       <div class="cal-legend">
-        <span><i class="dot cook"></i> готовка</span>
+        <span><i class="dot cook"></i> Приготовление еды</span>
+        <span><i class="dot eat"></i> Приём пищи</span>
         <span><i class="dot masha"></i> Маша</span>
         <span><i class="dot sasha"></i> Саша</span>
       </div>
-      <div class="cal-list">${cookHtml}${userHtml}${empty}</div>
+      <div class="cal-list">${listHtml}${empty}</div>
     `;
     $("cal-add")?.addEventListener("click", () => openForm(null));
     box.querySelectorAll("[data-id]").forEach((btn) => {
@@ -316,7 +414,10 @@
       });
     });
     box.querySelectorAll("[data-cook]").forEach((btn) => {
-      btn.addEventListener("click", () => openCook(btn.dataset.cook));
+      btn.addEventListener("click", () => openNutritionSlot("cook", btn.dataset.cook));
+    });
+    box.querySelectorAll("[data-eat]").forEach((btn) => {
+      btn.addEventListener("click", () => openNutritionSlot("eat", btn.dataset.eat));
     });
   }
 
@@ -381,21 +482,26 @@
     openSheet();
   }
 
-  function openCook(id) {
-    const item = cookEventsOn(state.selected).find((e) => e.id === id);
-    const plan = cookingItems();
+  function openNutritionSlot(kind, id) {
+    const item = (kind === "eat" ? mealEventsOn(state.selected) : cookEventsOn(state.selected))
+      .find((e) => e.id === id);
+    const plan = nutritionPlan();
+    const isEat = kind === "eat";
     $("cal-form").hidden = true;
     $("cal-cook-wrap").hidden = false;
-    $("cal-sheet-kicker").textContent = "готовка из рациона";
-    $("cal-sheet-title").textContent = item?.title || "Готовка";
+    $("cal-sheet-kicker").textContent = isEat ? "приём пищи из рациона" : "приготовление еды из рациона";
+    $("cal-sheet-title").textContent = item?.title || (isEat ? "Приём пищи" : "Приготовление еды");
+    const hint = isEat
+      ? "Это время приёма из вкладки Питание. Меняется там — здесь напоминание, когда садиться за стол."
+      : "Это слот приготовления из рациона. Меняется в разделе Питание — здесь только напоминание, когда ставить кастрюлю.";
     $("cal-cook-wrap").innerHTML = item
       ? `<p class="cal-cook-meta">${escapeHtml(item.start)} · ${escapeHtml(item.mealType)}${item.cover ? " · на " + escapeHtml(item.cover) : ""}</p>
-         <p class="cal-cook-copy">Это слот из ${plan.title ? "«" + escapeHtml(plan.title) + "»" : "выбранного рациона"}. Меняется в разделе Питание — здесь только напоминание, когда ставить кастрюлю.</p>
+         <p class="cal-cook-copy">${hint} ${plan.title ? "Рацион «" + escapeHtml(plan.title) + "»." : ""}</p>
          <div class="cal-form-actions">
            <a class="cal-save" href="${PITANIE}">Открыть питание</a>
            <button type="button" class="cal-cancel" id="cal-cook-close">Закрыть</button>
          </div>`
-      : `<p class="cal-cook-copy">Слот готовки уже не найден.</p>`;
+      : `<p class="cal-cook-copy">Слот уже не найден.</p>`;
     openSheet();
     $("cal-cook-close")?.addEventListener("click", closeSheet);
   }
