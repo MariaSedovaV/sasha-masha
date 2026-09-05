@@ -10,7 +10,7 @@
   --sage: #8fbea8;
   --rose: #d9897a;
   --sky: #8aa4c7;
-  --on-accent: #1a140c;
+  --on-accent: #ffffff;
   --glow-1: rgba(212, 180, 131, 0.09);
   --glow-2: rgba(138, 164, 199, 0.08);
   --panel: rgba(23, 26, 34, 0.55);
@@ -29,7 +29,7 @@ html[data-theme="light"] {
   --sage: #3f7a62;
   --rose: #b85a4c;
   --sky: #4d6f94;
-  --on-accent: #1a140c;
+  --on-accent: #ffffff;
   --glow-1: rgba(154, 112, 64, 0.14);
   --glow-2: rgba(77, 111, 148, 0.1);
   --panel: rgba(255, 250, 242, 0.62);
@@ -470,10 +470,10 @@ body.on-goals .photo-layer img { opacity: 0.2; }
 @media (max-width: 720px) {
   .site-chrome {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      "brand theme home"
-      "clock clock clock";
+      "brand theme"
+      "clock clock";
     align-items: center;
     gap: 8px 10px;
     padding: 10px 12px;
@@ -482,7 +482,6 @@ body.on-goals .photo-layer img { opacity: 0.2; }
   .brand { grid-area: brand; min-width: 0; }
   .chrome-actions { display: contents; }
   .theme-toggle { grid-area: theme; justify-self: end; }
-  .home-link { grid-area: home; width: 40px; height: 40px; }
   .together-clock {
     grid-area: clock;
     align-items: flex-start;

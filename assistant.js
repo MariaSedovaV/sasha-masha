@@ -169,6 +169,13 @@
     if (/(заметк|список дел|туду|todo)/.test(n) && !/(добав|запиш|напомн)/.test(n)) {
       return { say: already(LINKS.zametki) ? "Мы уже в заметках." : "Открываю заметки.", open: LINKS.zametki };
     }
+    if (/(материал|вдохновлен|референс|пинтерест|доск)/.test(n) && !/(добав|запиш|напомн|потрат)/.test(n)) {
+      if (already(LINKS.remont)) {
+        if (typeof window.sashaRemontShowTab === "function") window.sashaRemontShowTab("media");
+        return { say: "Открываю дополнительные материалы." };
+      }
+      return { say: "Открываю материалы ремонта.", open: LINKS.remont + "#материалы" };
+    }
     if (/(ремонт|чек.?лист|whitebox|отделк|мебел)/.test(n) && !/(добав|запиш|напомн|потрат)/.test(n)) {
       return { say: already(LINKS.remont) ? "Мы уже в ремонте." : "Открываю ремонт.", open: LINKS.remont };
     }
@@ -223,7 +230,7 @@
     const s = document.createElement("style");
     s.id = "assist-css";
     s.textContent = `
-.assist-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:80;border:0;background:var(--gold,#d4b483);color:var(--on-accent,#1a140c);border-radius:999px;padding:14px 18px;font:700 12px Montserrat,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.28)}
+.assist-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:80;border:0;background:var(--gold,#d4b483);color:var(--on-accent,#fff);border-radius:999px;padding:14px 18px;font:700 12px Montserrat,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.28)}
 .assist-fab.hidden{display:none!important}
 .assist-panel{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:85;width:min(420px,calc(100vw - 24px));height:min(560px,calc(100dvh - 24px));display:flex;flex-direction:column;background:var(--panel,rgba(23,26,34,.92));color:var(--ink,#efe8dc);border:1px solid var(--line,rgba(239,232,220,.08));border-radius:24px;backdrop-filter:blur(22px);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden;box-sizing:border-box;max-width:100%}
 .assist-panel.hidden{display:none!important}
@@ -240,8 +247,8 @@
 .assist-form{display:grid;gap:8px;padding:0 16px max(16px,env(safe-area-inset-bottom))}
 .assist-form input{width:100%;border:1px solid var(--line,rgba(239,232,220,.08));background:var(--bg,#0b0c10);color:inherit;border-radius:999px;padding:11px 14px;font:500 16px Montserrat,sans-serif;outline:none}
 .assist-mic{border:1px solid var(--gold,#d4b483);background:color-mix(in srgb,var(--gold,#d4b483) 16%,var(--bg,#0b0c10));color:var(--gold-2,#e8d3a8);border-radius:999px;min-height:46px;font:700 12px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;touch-action:none}
-.assist-mic.holding{background:var(--gold,#d4b483);color:var(--on-accent,#1a140c)}
-.assist-form button[type=submit]{border:0;background:var(--gold,#d4b483);color:var(--on-accent,#1a140c);border-radius:999px;min-height:42px;font:700 12px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.assist-mic.holding{background:var(--gold,#d4b483);color:var(--on-accent,#fff)}
+.assist-form button[type=submit]{border:0;background:var(--gold,#d4b483);color:var(--on-accent,#fff);border-radius:999px;min-height:42px;font:700 12px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 @media (max-width:720px){
   .assist-panel{inset:auto 0 0 0;width:100%;max-width:100%;height:auto;max-height:calc(100svh - env(safe-area-inset-top,0px) - 8px);border-radius:20px 20px 0 0}
   .assist-head{padding:12px 14px 10px;gap:8px;align-items:center}
@@ -265,10 +272,10 @@ html.assist-open,html.assist-open body{overflow:hidden}
     if (document.getElementById("assist-panel")) return;
     const wrap = document.createElement("div");
     wrap.innerHTML = `
-      <button type="button" class="assist-fab" id="assist-open">Помощник</button>
+      <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
       <section class="assist-panel hidden" id="assist-panel" hidden>
         <header class="assist-head">
-          <div><p class="eyebrow">семейный помощник</p><strong>Текстом или голосом</strong></div>
+          <div><p class="eyebrow">семейный дворецкий</p><strong>Текстом или голосом</strong></div>
           <button type="button" class="assist-close" id="assist-close">Закрыть</button>
         </header>
         <div class="assist-log" id="assist-log"></div>

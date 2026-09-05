@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -29,9 +29,6 @@
     </div>
     <div class="chrome-actions">
       <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Переключить тему">Светлая</button>
-      <a class="home-link" id="home-link" href="https://mariasedovav.github.io/sasha-masha/" aria-label="На главную">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11.2 12 4.8l7.5 6.4V20a1 1 0 0 1-1 1h-5.2v-6.2H10.7V21H5.5a1 1 0 0 1-1-1v-8.8Z"/></svg>
-      </a>
       <div class="together-clock" id="together-clock" aria-live="polite">
         <div class="clock-units" id="clock-units"></div>
       </div>
@@ -135,11 +132,11 @@
     </section>
   </main>
 
-  <button type="button" class="assist-fab" id="assist-open">Помощник</button>
+  <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
   <section class="assist-panel hidden" id="assist-panel" hidden>
     <header class="assist-head">
       <div>
-        <p class="eyebrow">семейный помощник</p>
+        <p class="eyebrow">семейный дворецкий</p>
         <strong>Текстом или голосом</strong>
       </div>
       <button type="button" class="assist-close" id="assist-close">Закрыть</button>
@@ -162,7 +159,7 @@
   </section>
 
   <script src="sync.js?v=10"></script>
-  <script src="app.js?v=6"></script>
-  <script src="assistant.js?v=9"></script>
+  <script src="app.js?v=7"></script>
+  <script src="assistant.js?v=11"></script>
 </body>
 </html>
