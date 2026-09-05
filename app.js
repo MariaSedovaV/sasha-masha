@@ -111,3 +111,98 @@ window.addEventListener("hashchange", () => {
 
 renderClock();
 setInterval(renderClock, 1000);
+
+function syncBrandPage() {
+  const page = document.querySelector(".brand-page");
+  if (!page) return;
+  page.textContent = document.documentElement.dataset.locked === "1" ? "Вход" : "Экосистема";
+}
+
+function refreshSessionChrome() {
+  const locked = document.documentElement.dataset.locked === "1";
+  const session = locked ? null : window.SashaAuth?.session?.();
+  const chip = $("session-chip");
+  const name = $("session-name");
+  const gate = $("gate-view");
+  if (chip) {
+    chip.hidden = !session;
+    chip.classList.toggle("masha", session?.id === "masha");
+    chip.classList.toggle("sasha", session?.id === "sasha");
+  }
+  if (name) name.textContent = session?.name || "";
+  if (gate) {
+    gate.hidden = !locked;
+    gate.classList.toggle("hidden", !locked);
+  }
+  syncBrandPage();
+}
+
+function bindGate() {
+  const form = $("gate-form");
+  if (!form || !window.SashaAuth) return;
+
+  form.querySelectorAll('input[name="gate-who"]').forEach((el) => {
+    el.addEventListener("change", () => {
+      if (!el.checked) return;
+      $("gate-login").value = el.value;
+      $("gate-error").textContent = "";
+      $("gate-password").focus();
+    });
+  });
+
+  $("gate-login")?.addEventListener("input", () => {
+    const id = window.SashaAuth.normalizeLogin($("gate-login").value);
+    form.querySelectorAll('input[name="gate-who"]').forEach((el) => {
+      el.checked = el.value === id;
+    });
+  });
+
+  $("gate-peek")?.addEventListener("click", () => {
+    const input = $("gate-password");
+    const peek = $("gate-peek");
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    peek.textContent = show ? "Скрыть" : "Показать";
+    peek.setAttribute("aria-pressed", show ? "true" : "false");
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const error = $("gate-error");
+    const enter = form.querySelector(".gate-enter");
+    error.textContent = "";
+    if (enter) enter.disabled = true;
+    try {
+      const session = await window.SashaAuth.login($("gate-login").value, $("gate-password").value);
+      if (!session) {
+        error.textContent = "Не тот логин или пароль. Попробуйте ещё раз.";
+        form.classList.remove("shake");
+        void form.offsetWidth;
+        form.classList.add("shake");
+        $("gate-password").value = "";
+        $("gate-password").focus();
+        return;
+      }
+      window.SashaAuth.setLocked(false);
+      $("gate-password").value = "";
+      refreshSessionChrome();
+    } finally {
+      if (enter) enter.disabled = false;
+    }
+  });
+
+  $("session-out")?.addEventListener("click", () => {
+    window.SashaAuth.logout();
+    $("gate-password").value = "";
+    $("gate-error").textContent = "";
+    refreshSessionChrome();
+    $("gate-login")?.focus();
+  });
+
+  refreshSessionChrome();
+  if (document.documentElement.dataset.locked === "1") {
+    requestAnimationFrame(() => $("gate-login")?.focus());
+  }
+}
+
+bindGate();

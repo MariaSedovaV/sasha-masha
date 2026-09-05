@@ -76,10 +76,11 @@
   function lastWho() {
     try {
       const v = localStorage.getItem(WHO_KEY);
-      return v === "sasha" || v === "masha" ? v : "masha";
-    } catch {
-      return "masha";
-    }
+      if (v === "sasha" || v === "masha") return v;
+      const session = window.SashaAuth?.session?.();
+      if (session?.id === "sasha" || session?.id === "masha") return session.id;
+    } catch {}
+    return "masha";
   }
 
   function saveWho(who) {
