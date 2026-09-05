@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -139,18 +139,21 @@
     </section>
 
     <section class="calendar hidden" id="calendar-view" hidden>
-      <button type="button" class="back-hub" id="back-hub-cal">← к экосистеме</button>
-      <p class="eyebrow">семейный ритм</p>
-      <h2 class="goals-title">Календарь</h2>
-      <p class="goals-lead" id="cal-lead">Приготовление и приёмы пищи из рациона недели и ваши события — общие на всех устройствах.</p>
-
-      <div class="cal-toolbar">
-        <div class="cal-nav">
-          <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="Предыдущий месяц">‹</button>
-          <h3 id="cal-month"></h3>
-          <button type="button" class="cal-nav-btn" id="cal-next" aria-label="Следующий месяц">›</button>
+      <div class="cal-head">
+        <div class="cal-head-copy">
+          <button type="button" class="back-hub" id="back-hub-cal">← к экосистеме</button>
+          <p class="eyebrow">семейный ритм</p>
+          <h2 class="goals-title">Календарь</h2>
+          <p class="goals-lead" id="cal-lead">Приготовление и приёмы пищи из рациона недели и ваши события — общие на всех устройствах.</p>
         </div>
-        <button type="button" class="cal-today" id="cal-today">Сегодня</button>
+        <div class="cal-toolbar">
+          <div class="cal-nav">
+            <button type="button" class="cal-nav-btn" id="cal-prev" aria-label="Предыдущий месяц">‹</button>
+            <h3 id="cal-month"></h3>
+            <button type="button" class="cal-nav-btn" id="cal-next" aria-label="Следующий месяц">›</button>
+          </div>
+          <button type="button" class="cal-today" id="cal-today">Сегодня</button>
+        </div>
       </div>
 
       <div class="cal-board">
