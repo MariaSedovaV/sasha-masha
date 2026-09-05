@@ -625,7 +625,7 @@ body.on-goals .photo-layer img { opacity: 0.2; }
   color: var(--ink);
   border-radius: 999px;
   padding: 11px 14px;
-  font: 500 14px Montserrat, sans-serif;
+  font: 500 16px Montserrat, sans-serif;
   outline: none;
 }
 .assist-form input:focus { border-color: var(--gold); }
@@ -659,13 +659,40 @@ body.on-goals .photo-layer img { opacity: 0.2; }
 
 @media (max-width: 720px) {
   .assist-panel {
-    right: 0;
-    left: 0;
-    bottom: 0;
+    inset: auto 0 0 0;
     width: 100%;
-    height: min(78dvh, 640px);
-    border-radius: 24px 24px 0 0;
+    max-width: 100%;
+    height: auto;
+    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 8px);
+    border-radius: 20px 20px 0 0;
+    box-sizing: border-box;
   }
+  .assist-head { padding: 12px 14px 10px; gap: 8px; align-items: center; }
+  .assist-head strong { font-size: 15px; }
+  .assist-close { flex-shrink: 0; padding: 8px 12px; font-size: 12px; }
+  .assist-log { padding: 10px 14px; min-height: 72px; max-height: 34svh; }
+  .assist-msg { font-size: 15px; line-height: 1.4; max-width: 100%; }
+  .assist-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 14px 8px;
+  }
+  .assist-chips::-webkit-scrollbar { display: none; }
+  .assist-chips button { flex: 0 0 auto; }
+  .assist-form {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 0 14px max(10px, env(safe-area-inset-bottom));
+  }
+  .assist-form input {
+    grid-column: 1 / -1;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .assist-mic,
+  .assist-form button[type="submit"] { min-height: 44px; }
   .assist-fab {
     right: max(12px, env(safe-area-inset-right));
     bottom: max(12px, env(safe-area-inset-bottom));
