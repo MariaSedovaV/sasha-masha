@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=5" />
+  <link rel="stylesheet" href="styles.css?v=6" />
 </head>
 <body>
   <header class="site-chrome">
@@ -74,8 +74,10 @@
             <tr>
               <th class="col-room">Комната</th>
               <th class="col-name">Предмет / материал к покупке</th>
-              <th class="col-qty">Количество</th>
+              <th class="col-qty">Кол-во</th>
+              <th class="col-unit">Ед. изм.</th>
               <th class="col-link">Ссылка</th>
+              <th class="col-unit-price">Цена за ед.</th>
               <th class="col-price">Стоимость</th>
               <th class="col-bought">Куплено</th>
               <th class="col-del"><span class="sr-only">Удалить</span></th>
@@ -168,10 +170,20 @@
   </dialog>
 
   <datalist id="room-list"></datalist>
+  <datalist id="unit-list">
+    <option value="шт"></option>
+    <option value="компл."></option>
+    <option value="м²"></option>
+    <option value="м.п."></option>
+    <option value="м"></option>
+    <option value="л"></option>
+    <option value="кг"></option>
+    <option value="упак."></option>
+  </datalist>
 
   <script src="data.js?v=1"></script>
   <script src="sync.js?v=20"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
   <script src="media.js?v=3"></script>
   <script src="assistant.js?v=12"></script>
 </body>

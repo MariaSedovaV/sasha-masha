@@ -32,35 +32,87 @@ function rooms() {
   return window.REMONT_ROOMS || [];
 }
 
+function splitQty(raw) {
+  const s = String(raw || "").trim();
+  const m = s.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
+  if (!m) return { qty: s || "1", unit: "шт" };
+  return { qty: m[1], unit: (m[2] || "шт").trim() || "шт" };
+}
+
+function parseAmount(value) {
+  const raw = String(value || "").replace(/\s/g, "").replace(",", ".");
+  if (!raw) return 0;
+  const n = Number(raw.replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatAmount(n) {
+  if (!Number.isFinite(n) || !n) return "";
+  const rounded = Math.round(n * 100) / 100;
+  return String(rounded).replace(".", ",");
+}
+
+function lineTotal(row) {
+  const q = parseAmount(row?.qty);
+  const p = parseAmount(row?.unitPrice);
+  if (q > 0 && p > 0) return q * p;
+  return 0;
+}
+
+function rowSum(row) {
+  return lineTotal(row) || parseAmount(row?.price);
+}
+
 function seedItems() {
-  return (window.REMONT_SEED || []).map((row, i) => ({
-    id: row.id,
-    room: row.room,
-    name: row.name,
-    qty: row.qty,
-    link: "",
-    price: "",
-    bought: false,
-    deleted: false,
-    at: i + 1,
-    updatedAt: 1,
-  }));
+  return (window.REMONT_SEED || []).map((row, i) => {
+    const parts = splitQty(row.qty);
+    return {
+      id: row.id,
+      room: row.room,
+      name: row.name,
+      qty: parts.qty,
+      unit: parts.unit,
+      unitPrice: "",
+      link: "",
+      price: "",
+      bought: false,
+      deleted: false,
+      at: i + 1,
+      updatedAt: 1,
+    };
+  });
 }
 
 function normalizeItem(row) {
   if (!row || row.id == null) return null;
-  return {
+  const rawQty = String(row.qty || "");
+  const hasUnit = String(row.unit || "").trim() !== "";
+  const combined = /[^\d\s.,]/.test(rawQty);
+  const parts = splitQty(rawQty);
+  const qty = combined || !hasUnit ? parts.qty : rawQty.trim() || parts.qty;
+  const unit = hasUnit ? String(row.unit).trim() : parts.unit;
+  const price = row.price == null ? "" : String(row.price);
+  let unitPrice = row.unitPrice == null || row.unitPrice === "" ? "" : String(row.unitPrice);
+  if (!unitPrice && parseAmount(price) && parseAmount(qty)) {
+    unitPrice = formatAmount(parseAmount(price) / parseAmount(qty));
+  }
+  const item = {
     id: String(row.id),
     room: String(row.room || ""),
     name: String(row.name || ""),
-    qty: String(row.qty || ""),
+    qty,
+    unit,
+    unitPrice,
     link: String(row.link || ""),
-    price: row.price == null ? "" : String(row.price),
+    price,
     bought: !!row.bought,
     deleted: !!row.deleted,
     at: Number(row.at || 0),
     updatedAt: Number(row.updatedAt || row.at || 0),
   };
+  const calc = lineTotal(item);
+  if (calc) item.price = formatAmount(calc);
+  return item;
 }
 
 function readLocal() {
@@ -119,13 +171,6 @@ function visible() {
   return items.filter((row) => !row.deleted && (!filterRoom || row.room === filterRoom));
 }
 
-function parsePrice(value) {
-  const raw = String(value || "").replace(/\s/g, "").replace(",", ".");
-  if (!raw) return 0;
-  const n = Number(raw.replace(/[^\d.]/g, ""));
-  return Number.isFinite(n) ? n : 0;
-}
-
 function money(n) {
   return Math.round(n).toLocaleString("ru-RU") + " ₽";
 }
@@ -142,8 +187,8 @@ function plural(n, one, few, many) {
 function updateTotals() {
   const alive = items.filter((row) => !row.deleted);
   const bought = alive.filter((row) => row.bought);
-  const boughtSum = bought.reduce((sum, row) => sum + parsePrice(row.price), 0);
-  const filledSum = alive.reduce((sum, row) => sum + parsePrice(row.price), 0);
+  const boughtSum = bought.reduce((sum, row) => sum + rowSum(row), 0);
+  const filledSum = alive.reduce((sum, row) => sum + rowSum(row), 0);
   $("sum-bought").textContent = money(boughtSum);
   $("sum-bought-count").textContent = bought.length + " " + plural(bought.length, "позиция", "позиции", "позиций");
   $("sum-filled").textContent = money(filledSum);
@@ -187,6 +232,8 @@ function showTab(tab) {
   });
   const next = list ? "" : "#материалы";
   if ((location.hash || "") !== next) history.replaceState(null, "", next || location.pathname + location.search);
+  document.body.classList.toggle("is-list", list);
+  document.body.classList.toggle("is-media", !list);
 }
 
 function renderTable() {
@@ -197,31 +244,40 @@ function renderTable() {
   const selEnd = active && typeof active.selectionEnd === "number" ? active.selectionEnd : null;
 
   const rows = visible();
-  $("table-body").innerHTML = rows.map((row) => `
+  $("table-body").innerHTML = rows.map((row) => {
+    const total = rowSum(row);
+    return `
     <tr data-id="${escapeHtml(row.id)}" class="${row.bought ? "bought-row" : ""}">
-      <td>
+      <td class="cell-room">
         <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="room" list="room-list" value="${escapeHtml(row.room)}" aria-label="Комната" />
       </td>
-      <td>
+      <td class="cell-name-wrap">
         <input class="cell-input cell-name" data-id="${escapeHtml(row.id)}" data-field="name" value="${escapeHtml(row.name)}" aria-label="Предмет или материал" />
       </td>
-      <td>
-        <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="qty" value="${escapeHtml(row.qty)}" aria-label="Количество" />
+      <td class="cell-qty" data-label="Кол-во">
+        <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="qty" value="${escapeHtml(row.qty)}" inputmode="decimal" aria-label="Количество" />
       </td>
-      <td>
+      <td class="cell-unit" data-label="Ед. изм.">
+        <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="unit" list="unit-list" value="${escapeHtml(row.unit || "шт")}" aria-label="Единица измерения" />
+      </td>
+      <td class="cell-link">
         <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="link" value="${escapeHtml(row.link)}" placeholder="https://" inputmode="url" aria-label="Ссылка" />
       </td>
-      <td>
-        <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="price" value="${escapeHtml(row.price)}" placeholder="₽" inputmode="decimal" aria-label="Стоимость" />
+      <td class="cell-unit-price" data-label="Цена за ед.">
+        <input class="cell-input" data-id="${escapeHtml(row.id)}" data-field="unitPrice" value="${escapeHtml(row.unitPrice)}" placeholder="₽" inputmode="decimal" aria-label="Цена за единицу" />
+      </td>
+      <td class="cell-total" data-label="Стоимость">
+        <span class="cell-sum" data-total="${escapeHtml(row.id)}">${total ? money(total) : "—"}</span>
       </td>
       <td class="bought-box">
         <input type="checkbox" data-id="${escapeHtml(row.id)}" data-field="bought" ${row.bought ? "checked" : ""} aria-label="Куплено" />
       </td>
-      <td>
+      <td class="cell-del">
         <button type="button" class="del-btn" data-del="${escapeHtml(row.id)}" aria-label="Удалить">×</button>
       </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   if (activeId && activeField) {
     const next = document.querySelector(`[data-id="${CSS.escape(activeId)}"][data-field="${CSS.escape(activeField)}"]`);
@@ -239,11 +295,24 @@ function findItem(id) {
   return items.find((row) => row.id === id);
 }
 
+function paintRowTotal(id) {
+  const row = findItem(id);
+  if (!row) return;
+  const total = rowSum(row);
+  const el = document.querySelector(`[data-total="${CSS.escape(id)}"]`);
+  if (el) el.textContent = total ? money(total) : "—";
+}
+
 function patchItem(id, field, value) {
   const row = findItem(id);
   if (!row) return;
   if (field === "bought") row.bought = !!value;
   else row[field] = value;
+  if (field === "qty" || field === "unitPrice") {
+    const calc = lineTotal(row);
+    row.price = calc ? formatAmount(calc) : "";
+    paintRowTotal(id);
+  }
   row.updatedAt = Date.now();
   scheduleSave();
   updateTotals();
@@ -257,7 +326,9 @@ function addRow() {
     id: uid(),
     room: filterRoom || "Кухня-гостиная",
     name: "",
-    qty: "1 шт",
+    qty: "1",
+    unit: "шт",
+    unitPrice: "",
     link: "",
     price: "",
     bought: false,

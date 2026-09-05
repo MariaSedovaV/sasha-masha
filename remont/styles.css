@@ -157,6 +157,40 @@ button, input, a { font-family: inherit; }
   padding: 28px 0 96px;
   padding-bottom: max(96px, env(safe-area-inset-bottom));
 }
+body.is-list {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+body.is-list .site-chrome { flex-shrink: 0; }
+body.is-list .page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 72px;
+}
+body.is-list #pane-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+body.is-list .intro,
+body.is-list .page-tabs,
+body.is-list .totals,
+body.is-list .toolbar {
+  flex-shrink: 0;
+}
+body.is-list .table-wrap {
+  flex: 1;
+  min-height: 0;
+}
+body.is-media .page {
+  overflow: auto;
+}
 .eyebrow {
   font-size: 11px;
   letter-spacing: 0.22em;
@@ -311,7 +345,7 @@ button, input, a { font-family: inherit; }
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
-  min-width: 920px;
+  min-width: 1100px;
 }
 .check-table th,
 .check-table td {
@@ -327,7 +361,7 @@ button, input, a { font-family: inherit; }
   color: var(--muted);
   font-weight: 700;
   padding: 14px 10px;
-  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  background: var(--card);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -336,13 +370,22 @@ button, input, a { font-family: inherit; }
 .check-table td:last-child { padding-right: 14px; }
 .check-table tr:last-child td { border-bottom: 0; }
 .check-table tr.bought-row td { opacity: 0.72; }
-.col-room { width: 16%; }
-.col-name { width: 28%; }
-.col-qty { width: 12%; }
-.col-link { width: 18%; }
-.col-price { width: 14%; }
-.col-bought { width: 8%; text-align: center; }
+.col-room { width: 13%; }
+.col-name { width: 20%; }
+.col-qty { width: 8%; }
+.col-unit { width: 8%; }
+.col-link { width: 14%; }
+.col-unit-price { width: 11%; }
+.col-price { width: 12%; }
+.col-bought { width: 7%; text-align: center; }
 .col-del { width: 48px; text-align: center; }
+.cell-sum {
+  display: block;
+  padding: 8px 8px;
+  font: 700 13px Montserrat, sans-serif;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
 
 .cell-input {
   width: 100%;
@@ -721,7 +764,14 @@ html:has(.sheet[open]) .assist-dock {
   .theme-toggle { min-height: 40px; padding: 8px 12px; font-size: 12px; }
   .home-link { width: 40px; height: 40px; }
   .page { width: min(100% - 20px, 1240px); padding-top: 18px; }
+  body.is-list .lead { display: none; }
+  body.is-list .intro h1 { font-size: 28px; }
+  body.is-list .toolbar { margin-top: 10px; }
   .totals { grid-template-columns: 1fr; }
+  body.is-list .totals { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  body.is-list .total-card { padding: 8px 10px; border-radius: 14px; gap: 2px; }
+  body.is-list .total-card strong { font-size: 13px; }
+  body.is-list .total-card span { font-size: 10px; }
   .toolbar { flex-direction: column; }
   .toolbar-actions { width: 100%; }
   .add-btn, .reset-btn { width: 100%; min-height: 46px; }
@@ -736,7 +786,7 @@ html:has(.sheet[open]) .assist-dock {
     grid-template-areas:
       "room room bought del"
       "name name name name"
-      "qty price price price"
+      "qty unit unitPrice total"
       "link link link link";
     gap: 6px;
     padding: 12px;
@@ -745,12 +795,24 @@ html:has(.sheet[open]) .assist-dock {
     background: var(--bg);
   }
   .check-table td { border: 0; padding: 0; }
-  .col-room, td:nth-child(1) { grid-area: room; }
-  .col-name, td:nth-child(2) { grid-area: name; }
-  .col-qty, td:nth-child(3) { grid-area: qty; }
-  .col-link, td:nth-child(4) { grid-area: link; }
-  .col-price, td:nth-child(5) { grid-area: price; }
-  .col-bought, td:nth-child(6) { grid-area: bought; }
-  .col-del, td:nth-child(7) { grid-area: del; justify-self: end; }
+  .cell-room { grid-area: room; }
+  .cell-name-wrap { grid-area: name; }
+  .cell-qty { grid-area: qty; }
+  .cell-unit { grid-area: unit; }
+  .cell-link { grid-area: link; }
+  .cell-unit-price { grid-area: unitPrice; }
+  .cell-total { grid-area: total; }
+  .bought-box { grid-area: bought; }
+  .cell-del { grid-area: del; justify-self: end; }
+  .check-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
   .cell-input { background: var(--card); border-color: var(--line); }
 }
