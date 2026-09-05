@@ -13,7 +13,7 @@
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
   </script>
-  <link rel="stylesheet" href="styles.css?v=4" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <header class="site-chrome">
@@ -120,9 +120,9 @@
           <label class="drop-zone drop-zone-compact" id="file-drop">
             <input id="file-input" type="file" multiple hidden />
             <strong>Сметы, PDF, таблицы</strong>
-            <span>Перетащите файл или выберите</span>
+            <span>До 18 МБ. Перетащите файл или выберите</span>
           </label>
-          <p class="media-empty" id="file-empty">Файлы с любого устройства можно скачать здесь.</p>
+          <p class="media-empty" id="file-empty">Файлы до 18 МБ с любого устройства можно скачать здесь.</p>
           <ul class="file-list" id="file-list"></ul>
         </aside>
       </div>
@@ -150,10 +150,15 @@
 
   <dialog class="lightbox" id="lightbox">
     <figure class="lightbox-card">
-      <img id="lightbox-img" alt="" />
+      <div class="lightbox-frame">
+        <button type="button" class="lightbox-nav" id="lightbox-prev" aria-label="Предыдущее фото">‹</button>
+        <img id="lightbox-img" alt="" />
+        <button type="button" class="lightbox-nav" id="lightbox-next" aria-label="Следующее фото">›</button>
+      </div>
       <figcaption>
         <span id="lightbox-room"></span>
         <span id="lightbox-caption"></span>
+        <span class="lightbox-count" id="lightbox-count"></span>
       </figcaption>
       <div class="lightbox-actions">
         <button type="button" class="reset-btn" id="lightbox-close">Закрыть</button>
@@ -165,9 +170,9 @@
   <datalist id="room-list"></datalist>
 
   <script src="data.js?v=1"></script>
-  <script src="sync.js?v=19"></script>
+  <script src="sync.js?v=20"></script>
   <script src="app.js?v=5"></script>
-  <script src="media.js?v=2"></script>
+  <script src="media.js?v=3"></script>
   <script src="assistant.js?v=12"></script>
 </body>
 </html>

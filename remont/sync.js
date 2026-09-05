@@ -193,9 +193,75 @@
     return data;
   }
 
+  function blobName(id) {
+    return "rf-" + String(id || "file").replace(/[^\w.-]/g, "") + ".txt";
+  }
+
+  function filesMeta(list) {
+    return (list || []).map((row) => {
+      const next = { ...row };
+      if (next.data) next.gistFile = next.gistFile || blobName(next.id);
+      delete next.data;
+      return next;
+    });
+  }
+
+  async function gistText(file) {
+    if (!file) return "";
+    const needRaw = file.truncated || Number(file.size) > 900000;
+    if (needRaw && file.raw_url) {
+      const res = await fetch(withCacheBust(file.raw_url), { cache: "no-store" });
+      if (!res.ok) throw new Error("cloud-raw " + res.status);
+      return await res.text();
+    }
+    return file.content || "";
+  }
+
+  async function parseGistJson(file) {
+    const text = await gistText(file);
+    if (!text) return null;
+    return JSON.parse(text);
+  }
+
+  async function attachFileBlobs(media, gistFiles) {
+    const files = [];
+    for (const row of media.files || []) {
+      const next = { ...row };
+      const name = next.gistFile || blobName(next.id);
+      if (!next.data && gistFiles && gistFiles[name]) {
+        try { next.data = await gistText(gistFiles[name]); } catch {}
+      }
+      if (!next.data && name) {
+        try {
+          const res = await fetch(withCacheBust("https://gist.githubusercontent.com/MariaSedovaV/" + GIST_ID + "/raw/" + name), { cache: "no-store" });
+          if (res.ok) next.data = await res.text();
+        } catch {}
+      }
+      files.push(next);
+    }
+    return { ...media, files };
+  }
+
+  function dirtyFileIds(merged, remote) {
+    const prev = new Map((remote.files || []).map((row) => [String(row.id), row]));
+    const ids = [];
+    for (const row of merged.files || []) {
+      const id = String(row.id);
+      const old = prev.get(id);
+      if (row.deleted) {
+        if (old && !old.deleted) ids.push(id);
+        continue;
+      }
+      if (!row.data) continue;
+      if (!old || stamp(row) > stamp(old) || !old.gistFile) ids.push(id);
+    }
+    return ids;
+  }
+
   async function remoteGet() {
     let check = { items: [], rev: 0 };
     let media = { photos: [], files: [], mediaRev: 0 };
+    let gistFiles = null;
 
     if (gistToken) {
       try {
@@ -209,8 +275,10 @@
         });
         if (res.ok) {
           const gist = await res.json();
-          if (gist?.files?.[FILE]?.content) check = parseChecklist(JSON.parse(gist.files[FILE].content));
-          if (gist?.files?.[MEDIA_FILE]?.content) media = parseMedia(JSON.parse(gist.files[MEDIA_FILE].content));
+          gistFiles = gist?.files || null;
+          if (gistFiles?.[FILE]) check = parseChecklist(await parseGistJson(gistFiles[FILE]));
+          if (gistFiles?.[MEDIA_FILE]) media = parseMedia(await parseGistJson(gistFiles[MEDIA_FILE]));
+          media = await attachFileBlobs(media, gistFiles);
           return { ...empty(), ...check, ...media };
         }
       } catch {}
@@ -220,6 +288,7 @@
       try { check = parseChecklist(await fetchJson(url)); break; } catch {}
     }
     try { media = parseMedia(await fetchJson(MEDIA_RAW)); } catch {}
+    media = await attachFileBlobs(media, gistFiles);
     return { ...empty(), ...check, ...media };
   }
 
@@ -233,10 +302,17 @@
       files[MEDIA_FILE] = {
         content: JSON.stringify({
           photos: state.photos || [],
-          files: state.files || [],
+          files: filesMeta(state.files),
           mediaRev: Number(state.mediaRev || 0),
         }),
       };
+      const byId = new Map((state.files || []).map((row) => [String(row.id), row]));
+      for (const id of parts.dirtyFileIds || []) {
+        const row = byId.get(String(id));
+        const name = (row && row.gistFile) || blobName(id);
+        if (!row || row.deleted || !row.data) files[name] = { content: "" };
+        else files[name] = { content: row.data };
+      }
     }
     if (!Object.keys(files).length) return true;
     const gistRes = await fetch(GIST_API, {
@@ -312,7 +388,11 @@
     if (mediaChanged) merged.mediaRev = Number(merged.mediaRev || 0) + 1;
     persistLocal(merged);
     try {
-      await remotePut(merged, { items: itemsChanged, media: mediaChanged });
+      await remotePut(merged, {
+        items: itemsChanged,
+        media: mediaChanged,
+        dirtyFileIds: mediaChanged ? dirtyFileIds(merged, remote) : [],
+      });
       setStatus(true, "");
     } catch (err) {
       setStatus(false, String(err?.message || err || "cloud-put"));

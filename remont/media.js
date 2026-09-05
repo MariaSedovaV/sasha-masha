@@ -1,6 +1,6 @@
 (function () {
   const PHOTO_MAX = 1100;
-  const FILE_MAX = 1800000;
+  const FILE_MAX = 18000000;
 
   let photos = [];
   let files = [];
@@ -279,7 +279,7 @@
         });
       } catch (err) {
         window.alert(err && err.message === "too-big"
-          ? "Файл больше 1,8 МБ. Сожмите его или загрузите ссылкой в чек-лист."
+          ? "Файл больше 18 МБ. Сожмите его или разбейте на части."
           : "Этот файл не удалось загрузить.");
       }
     }
@@ -290,22 +290,35 @@
   function downloadFile(id) {
     const row = files.find((item) => item.id === id && !item.deleted);
     if (!row || !row.data) return;
+    let href = row.data;
+    let revoke = "";
+    try {
+      const parts = String(row.data).split(",");
+      const mime = (parts[0].match(/data:([^;]+)/) || [, "application/octet-stream"])[1];
+      const bin = atob(parts[1] || "");
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+      revoke = URL.createObjectURL(new Blob([bytes], { type: mime }));
+      href = revoke;
+    } catch {}
     const a = document.createElement("a");
-    a.href = row.data;
+    a.href = href;
     a.download = row.name || "файл";
     document.body.appendChild(a);
     a.click();
     a.remove();
+    if (revoke) setTimeout(() => URL.revokeObjectURL(revoke), 1500);
   }
 
   function removePhoto(id) {
     const row = photos.find((item) => item.id === id);
-    if (!row) return;
-    if (!window.confirm("Удалить это фото? На других устройствах оно тоже исчезнет.")) return;
+    if (!row) return false;
+    if (!window.confirm("Удалить это фото? На других устройствах оно тоже исчезнет.")) return false;
     row.deleted = true;
     row.updatedAt = Date.now();
     renderPhotos();
     persist();
+    return true;
   }
 
   function removeFile(id) {
@@ -318,17 +331,43 @@
     persist();
   }
 
-  function openLightbox(id) {
-    const row = photos.find((item) => item.id === id && !item.deleted);
+  function lightboxList() {
+    return visiblePhotos();
+  }
+
+  function fillLightbox(id) {
+    const rows = lightboxList();
+    const index = rows.findIndex((item) => item.id === id);
+    const row = index >= 0 ? rows[index] : photos.find((item) => item.id === id && !item.deleted);
     const box = $("lightbox");
-    if (!row || !box) return;
-    lightboxId = id;
+    if (!row || !box) return false;
+    lightboxId = row.id;
     $("lightbox-img").src = row.data;
     $("lightbox-img").alt = row.caption || row.room || "";
     $("lightbox-room").textContent = row.room || "";
     $("lightbox-caption").textContent = row.caption || "";
-    if (typeof box.showModal === "function") box.showModal();
-    else box.setAttribute("open", "");
+    const count = $("lightbox-count");
+    if (count) count.textContent = rows.length ? (index + 1) + " из " + rows.length : "";
+    const many = rows.length > 1;
+    $("lightbox-prev")?.classList.toggle("is-hidden", !many);
+    $("lightbox-next")?.classList.toggle("is-hidden", !many);
+    return true;
+  }
+
+  function openLightbox(id) {
+    const box = $("lightbox");
+    if (!fillLightbox(id) || !box) return;
+    if (typeof box.showModal === "function") {
+      if (!box.open) box.showModal();
+    } else box.setAttribute("open", "");
+  }
+
+  function stepLightbox(dir) {
+    const rows = lightboxList();
+    if (rows.length < 2) return;
+    const index = rows.findIndex((item) => item.id === lightboxId);
+    const next = rows[(index + dir + rows.length) % rows.length];
+    if (next) fillLightbox(next.id);
   }
 
   function closeLightbox() {
@@ -414,12 +453,44 @@
     });
 
     $("lightbox-close").addEventListener("click", closeLightbox);
+    $("lightbox-prev").addEventListener("click", (e) => {
+      e.stopPropagation();
+      stepLightbox(-1);
+    });
+    $("lightbox-next").addEventListener("click", (e) => {
+      e.stopPropagation();
+      stepLightbox(1);
+    });
     $("lightbox-del").addEventListener("click", () => {
-      if (lightboxId) removePhoto(lightboxId);
-      closeLightbox();
+      if (!lightboxId) return;
+      const rows = lightboxList();
+      const index = rows.findIndex((item) => item.id === lightboxId);
+      if (!removePhoto(lightboxId)) return;
+      const next = lightboxList();
+      if (!next.length) {
+        closeLightbox();
+        return;
+      }
+      fillLightbox(next[Math.min(index, next.length - 1)].id);
     });
     $("lightbox").addEventListener("click", (e) => {
       if (e.target.id === "lightbox") closeLightbox();
+    });
+    let swipeX = 0;
+    $("lightbox").addEventListener("touchstart", (e) => {
+      swipeX = e.changedTouches[0] ? e.changedTouches[0].clientX : 0;
+    }, { passive: true });
+    $("lightbox").addEventListener("touchend", (e) => {
+      const x = e.changedTouches[0] ? e.changedTouches[0].clientX : swipeX;
+      const dx = x - swipeX;
+      if (Math.abs(dx) < 50) return;
+      stepLightbox(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    document.addEventListener("keydown", (e) => {
+      const box = $("lightbox");
+      if (!box || (!box.open && !box.hasAttribute("open"))) return;
+      if (e.key === "ArrowRight") stepLightbox(1);
+      if (e.key === "ArrowLeft") stepLightbox(-1);
     });
 
     window.sashaRemontMediaReload = function () {

@@ -9,6 +9,7 @@
     zametki: "https://mariasedovav.github.io/sasha-masha-zametki/",
     remont: "https://mariasedovav.github.io/sasha-masha/remont/",
     goals: HOME + "#цели",
+    calendar: HOME + "#календарь",
   };
 
   const EXPENSE_CATS = [
@@ -154,7 +155,7 @@
     if (!n) return { say: "Скажите ещё раз — я не расслышала." };
 
     if (/(помощ|умеешь|сценари|что можешь|help)/.test(n)) {
-      return { say: "Могу открыть бюджет, питание, заметки, ремонт или цели. Добавить дело Саше или Маше. Записать трату в категорию этого месяца. Интернет сама не ищу — но могу открыть поиск Яндекса." };
+      return { say: "Могу открыть бюджет, питание, заметки, ремонт, календарь или цели. Добавить дело Саше или Маше. Записать трату в категорию этого месяца. Интернет сама не ищу — но могу открыть поиск Яндекса." };
     }
     if (/(найди|погугли|поиск|что такое|кто такой|загугли)/.test(n)) {
       const q = text.replace(/^(найди|погугли|поиск|что такое|кто такой|загугли)\s+/i, "").trim() || text;
@@ -178,6 +179,9 @@
     }
     if (/(ремонт|чек.?лист|whitebox|отделк|мебел)/.test(n) && !/(добав|запиш|напомн|потрат)/.test(n)) {
       return { say: already(LINKS.remont) ? "Мы уже в ремонте." : "Открываю ремонт.", open: LINKS.remont };
+    }
+    if (/(календар|событи|встреч)/.test(n) && !/(добав|запиш)/.test(n)) {
+      return { say: "Открываю календарь.", calendar: true };
     }
     if (/(цел[иь]|горизонт|желани)/.test(n) && !/(добав|новую цель)/.test(n)) {
       return { say: "Открываю цели.", goals: true };
@@ -230,7 +234,13 @@
     const s = document.createElement("style");
     s.id = "assist-css";
     s.textContent = `
-.assist-fab{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:80;border:0;background:var(--gold,#d4b483);color:var(--on-accent,#fff);border-radius:999px;padding:14px 18px;font:700 12px Montserrat,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.28)}
+.assist-dock{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:80;display:flex;align-items:center;gap:10px}
+.assist-dock.is-panel-open{display:none}
+.assist-to-top{display:grid;place-items:center;width:48px;height:48px;border:1px solid var(--line,rgba(239,232,220,.14));border-radius:999px;background:color-mix(in srgb,var(--card,#171a22) 88%,transparent);color:var(--ink,#efe8dc);cursor:pointer;box-shadow:0 14px 36px rgba(0,0,0,.28);backdrop-filter:blur(12px);transition:opacity .2s ease,transform .2s ease,visibility .2s ease;opacity:0;visibility:hidden;pointer-events:none}
+.assist-to-top.is-visible{opacity:1;visibility:visible;pointer-events:auto}
+.assist-to-top:hover{transform:translateY(-2px);border-color:rgba(212,180,131,.45);color:var(--gold,#d4b483)}
+.assist-to-top svg{width:22px;height:22px;display:block}
+.assist-fab{border:0;background:var(--gold,#d4b483);color:var(--on-accent,#fff);border-radius:999px;padding:14px 18px;font:700 12px Montserrat,sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 16px 40px rgba(0,0,0,.28)}
 .assist-fab.hidden{display:none!important}
 .assist-panel{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(16px,env(safe-area-inset-bottom));z-index:85;width:min(420px,calc(100vw - 24px));height:min(560px,calc(100dvh - 24px));display:flex;flex-direction:column;background:var(--panel,rgba(23,26,34,.92));color:var(--ink,#efe8dc);border:1px solid var(--line,rgba(239,232,220,.08));border-radius:24px;backdrop-filter:blur(22px);box-shadow:0 24px 70px rgba(0,0,0,.32);overflow:hidden;box-sizing:border-box;max-width:100%}
 .assist-panel.hidden{display:none!important}
@@ -262,7 +272,10 @@
   .assist-form{grid-template-columns:1fr 1fr;gap:8px;padding:0 14px max(10px,env(safe-area-inset-bottom))}
   .assist-form input{grid-column:1/-1;min-height:44px;font-size:16px}
   .assist-mic,.assist-form button[type=submit]{min-height:44px}
+  .assist-dock{gap:8px}
+  .assist-to-top{width:46px;height:46px}
 }
+html[data-theme="light"] .assist-to-top{background:rgba(255,250,242,.94);color:#1c1915;border-color:rgba(28,25,21,.12)}
 html.assist-open,html.assist-open body{overflow:hidden}
 `;
     document.head.appendChild(s);
@@ -272,7 +285,12 @@ html.assist-open,html.assist-open body{overflow:hidden}
     if (document.getElementById("assist-panel")) return;
     const wrap = document.createElement("div");
     wrap.innerHTML = `
-      <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
+      <div class="assist-dock" id="assist-dock">
+        <button type="button" class="assist-to-top" id="assist-to-top" aria-label="Наверх" title="Наверх">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5.2 5.6 11.6a1 1 0 0 0 1.4 1.4L11 8.9V19a1 1 0 1 0 2 0V8.9l4 4.1a1 1 0 0 0 1.4-1.4L12 5.2Z" fill="currentColor"/></svg>
+        </button>
+        <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
+      </div>
       <section class="assist-panel hidden" id="assist-panel" hidden>
         <header class="assist-head">
           <div><p class="eyebrow">семейный дворецкий</p><strong>Текстом или голосом</strong></div>
@@ -284,6 +302,7 @@ html.assist-open,html.assist-open body{overflow:hidden}
           <button type="button" data-assist="открой питание">питание</button>
           <button type="button" data-assist="открой заметки">заметки</button>
           <button type="button" data-assist="открой ремонт">ремонт</button>
+          <button type="button" data-assist="открой календарь">календарь</button>
           <button type="button" data-assist="открой цели">цели</button>
           <button type="button" data-assist="добавь Маше купить молоко">дело Маше</button>
           <button type="button" data-assist="запиши 1500 в такси">трата</button>
@@ -307,6 +326,7 @@ html.assist-open,html.assist-open body{overflow:hidden}
     const mic = document.getElementById("assist-mic");
     const openBtn = document.getElementById("assist-open");
     const closeBtn = document.getElementById("assist-close");
+    const toTopBtn = document.getElementById("assist-to-top");
     if (!panel || !form) return;
 
     function fitSheet() {
@@ -324,6 +344,17 @@ html.assist-open,html.assist-open body{overflow:hidden}
     window.visualViewport?.addEventListener("scroll", fitSheet);
     window.addEventListener("resize", fitSheet);
 
+    function updateToTopVisibility() {
+      if (!toTopBtn) return;
+      const show = window.scrollY > 280;
+      toTopBtn.classList.toggle("is-visible", show);
+    }
+    toTopBtn?.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    window.addEventListener("scroll", updateToTopVisibility, { passive: true });
+    updateToTopVisibility();
+
     function addMsg(role, text) {
       const el = document.createElement("div");
       el.className = "assist-msg " + role;
@@ -338,6 +369,11 @@ html.assist-open,html.assist-open body{overflow:hidden}
       addMsg("bot", res.say);
       if (fromVoice) speak(res.say);
       if (res.theme) document.getElementById("theme-toggle")?.click();
+      if (res.calendar) {
+        const btn = document.getElementById("open-calendar");
+        if (btn) btn.click();
+        else location.href = LINKS.calendar;
+      }
       if (res.goals) {
         const btn = document.getElementById("open-goals");
         if (btn) btn.click();
@@ -356,6 +392,7 @@ html.assist-open,html.assist-open body{overflow:hidden}
       panel.classList.remove("hidden");
       panel.hidden = false;
       openBtn.classList.add("hidden");
+      document.getElementById("assist-dock")?.classList.add("is-panel-open");
       if (!log.childElementCount) {
         addMsg("bot", "Привет. Могу открыть разделы, добавить дело Саше или Маше и записать трату в категорию этого месяца. Зажмите кнопку и говорите — или напишите.");
       }
@@ -366,6 +403,7 @@ html.assist-open,html.assist-open body{overflow:hidden}
       panel.classList.add("hidden");
       panel.hidden = true;
       openBtn.classList.remove("hidden");
+      document.getElementById("assist-dock")?.classList.remove("is-panel-open");
       fitSheet();
     });
     form.addEventListener("submit", (e) => {
