@@ -61,6 +61,16 @@ function renderClock() {
     .join("");
 }
 
+function viewFromHash() {
+  const raw = String(location.hash || "").replace(/^#/, "");
+  let h = raw;
+  try { h = decodeURIComponent(raw); } catch {}
+  h = h.trim().toLowerCase();
+  if (h === "цели" || h === "goals") return "goals";
+  if (h === "календарь" || h === "calendar") return "calendar";
+  return "";
+}
+
 function showView(name) {
   const views = ["hub", "goals", "calendar"];
   views.forEach((v) => {
@@ -91,8 +101,13 @@ $("home-link")?.addEventListener("click", (e) => {
   showView("hub");
 });
 
-if (location.hash === "#цели" || location.hash === "#goals") showView("goals");
-else if (location.hash === "#календарь" || location.hash === "#calendar") showView("calendar");
+if (viewFromHash() === "goals") showView("goals");
+else if (viewFromHash() === "calendar") showView("calendar");
+window.addEventListener("hashchange", () => {
+  const view = viewFromHash();
+  if (view) showView(view);
+  else showView("hub");
+});
 
 renderClock();
 setInterval(renderClock, 1000);
