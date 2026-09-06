@@ -758,6 +758,45 @@ html:has(.sheet[open]) .assist-dock {
 }
 
 @media (max-width: 720px) {
+  body.is-list {
+    height: auto;
+    overflow: visible;
+    display: block;
+  }
+  body.is-list .page {
+    flex: none;
+    min-height: 0;
+    display: block;
+    overflow: visible;
+    padding-bottom: max(96px, env(safe-area-inset-bottom));
+  }
+  body.is-list #pane-list {
+    flex: none;
+    min-height: 0;
+    display: block;
+  }
+  body.is-list .table-wrap {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
+  }
+  body.is-list .page-tabs {
+    position: sticky;
+    top: calc(52px + env(safe-area-inset-top, 0px));
+    z-index: 12;
+    background: var(--bg);
+    padding: 8px 0 10px;
+    margin-top: 12px;
+  }
+  body.is-list .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  body.is-list .filters::-webkit-scrollbar { display: none; }
+  body.is-list .filter-chip { flex: 0 0 auto; }
   .site-chrome { padding: 10px 12px; padding-top: max(10px, env(safe-area-inset-top)); }
   .logo { font-size: 16px; }
   .brand-page { font-size: 14px; }
@@ -765,6 +804,7 @@ html:has(.sheet[open]) .assist-dock {
   .home-link { width: 40px; height: 40px; }
   .page { width: min(100% - 20px, 1240px); padding-top: 18px; }
   body.is-list .lead { display: none; }
+  body.is-list .intro { margin-bottom: 0; }
   body.is-list .intro h1 { font-size: 28px; }
   body.is-list .toolbar { margin-top: 10px; }
   .totals { grid-template-columns: 1fr; }
@@ -786,9 +826,10 @@ html:has(.sheet[open]) .assist-dock {
     grid-template-areas:
       "room room bought del"
       "name name name name"
-      "qty unit unitPrice total"
+      "qty qty unit unit"
+      "unitPrice unitPrice total total"
       "link link link link";
-    gap: 6px;
+    gap: 8px 6px;
     padding: 12px;
     border: 1px solid var(--line);
     border-radius: 16px;

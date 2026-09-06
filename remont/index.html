@@ -12,16 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
   <script>
     document.documentElement.dataset.theme = localStorage.getItem("sasha-theme") || "dark";
-    try {
-      var session = JSON.parse(localStorage.getItem("sasha-session") || "null");
-      if (!session || session.v !== 1 || (session.id !== "masha" && session.id !== "sasha")) {
-        location.replace("../");
-      }
-    } catch (err) {
-      location.replace("../");
-    }
   </script>
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
 </head>
 <body>
   <header class="site-chrome">
