@@ -374,10 +374,14 @@
     const list = Array.isArray(blocks) ? blocks : [];
     if (!list.length) return "";
     return `<div class="cal-note-body">${list.map((b) => {
+      if (b.type === "gap") {
+        const n = Math.max(1, Math.min(12, Number(b.count) || 1));
+        return `<div class="cal-note-gap" style="height:${n * 0.7}em"></div>`;
+      }
       if (b.type === "li") {
         return `<p class="cal-note-li${b.done ? " done" : ""}"><i></i><span>${escapeHtml(b.text)}</span></p>`;
       }
-      return `<p class="cal-note-p">${escapeHtml(b.text)}</p>`;
+      return `<p class="cal-note-p">${escapeHtml(b.text || "").replace(/\n/g, "<br>")}</p>`;
     }).join("")}</div>`;
   }
 
