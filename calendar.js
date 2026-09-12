@@ -350,10 +350,11 @@
   function marksFor(iso) {
     const weekly = weeklyEventsOn(iso);
     const users = userEventsOn(iso);
+    const notes = noteEventsOn(iso);
     return {
       shared: mealEventsOn(iso).length > 0 || weekly.some((e) => !e.who),
-      masha: users.some((e) => e.who === "masha") || cookEventsOn(iso).length > 0,
-      sasha: users.some((e) => e.who === "sasha") || weekly.some((e) => e.who === "sasha"),
+      masha: users.some((e) => e.who === "masha") || cookEventsOn(iso).length > 0 || notes.some((e) => e.who === "masha"),
+      sasha: users.some((e) => e.who === "sasha") || weekly.some((e) => e.who === "sasha") || notes.some((e) => e.who === "sasha"),
     };
   }
 
@@ -439,7 +440,8 @@
     const meals = mealEventsOn(state.selected);
     const weekly = weeklyEventsOn(state.selected);
     const users = userEventsOn(state.selected);
-    const rows = [...cook, ...meals, ...weekly, ...users].sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
+    const notes = noteEventsOn(state.selected);
+    const rows = [...cook, ...meals, ...weekly, ...notes, ...users].sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
     const listHtml = rows.length
       ? rows.map((item) => {
         if (item.kind === "cook") {
@@ -471,6 +473,17 @@
             <span class="cal-item-body">
               <em>${escapeHtml(kicker)}</em>
               <strong>${escapeHtml(item.title)}</strong>
+            </span>
+          </button>`;
+        }
+        if (item.kind === "note") {
+          const cls = item.who === "sasha" ? "sasha" : "masha";
+          return `<button type="button" class="cal-item ${cls} note${item.done ? " is-done" : ""}" data-note="${escapeHtml(item.id)}">
+            <span class="cal-item-time">весь день</span>
+            <span class="cal-item-body">
+              <em>заметка · ${escapeHtml(whoLabel(item.who))}</em>
+              <strong>${escapeHtml(item.title)}</strong>
+              ${item.preview ? `<small>${escapeHtml(item.preview)}</small>` : ""}
             </span>
           </button>`;
         }
@@ -518,6 +531,9 @@
     box.querySelectorAll("[data-week]").forEach((btn) => {
       btn.addEventListener("click", () => openWeeklySlot(btn.dataset.week));
     });
+    box.querySelectorAll("[data-note]").forEach((btn) => {
+      btn.addEventListener("click", () => openNoteSlot(btn.dataset.note));
+    });
   }
 
   function render() {
@@ -555,13 +571,58 @@
     toggleTimes();
   }
 
+  function sheetCard() {
+    return document.querySelector("#cal-sheet .cal-sheet-card");
+  }
+
+  function clearSheetPos() {
+    const card = sheetCard();
+    if (!card) return;
+    card.classList.remove("is-anchored");
+    card.style.position = "";
+    card.style.top = "";
+    card.style.left = "";
+    card.style.width = "";
+    card.style.maxHeight = "";
+  }
+
+  function placeSheetCard() {
+    const sheet = $("cal-sheet");
+    const card = sheetCard();
+    const agenda = $("cal-agenda");
+    if (!sheet || !card || sheet.hidden) return;
+    clearSheetPos();
+    const stacked = window.matchMedia("(max-width: 860px)").matches;
+    if (stacked || !agenda) return;
+    const r = agenda.getBoundingClientRect();
+    if (r.width < 220 || r.height < 160) return;
+    const pad = 16;
+    const width = Math.min(420, Math.max(280, r.width - 20));
+    const maxH = Math.min(r.height - 12, window.innerHeight - pad * 2);
+    card.classList.add("is-anchored");
+    card.style.position = "fixed";
+    card.style.width = width + "px";
+    card.style.maxHeight = Math.max(200, maxH) + "px";
+    const h = Math.min(card.getBoundingClientRect().height, maxH);
+    let left = r.left + (r.width - width) / 2;
+    let top = r.top + Math.max(0, (r.height - h) / 2);
+    left = Math.min(Math.max(pad, left), window.innerWidth - width - pad);
+    top = Math.min(Math.max(pad, top), window.innerHeight - h - pad);
+    card.style.left = left + "px";
+    card.style.top = top + "px";
+  }
+
   function openSheet() {
     const sheet = $("cal-sheet");
     if (!sheet) return;
     sheet.classList.remove("hidden");
     sheet.hidden = false;
     document.documentElement.classList.add("cal-sheet-open");
-    setTimeout(() => $("cal-title")?.focus(), 40);
+    requestAnimationFrame(() => {
+      placeSheetCard();
+      requestAnimationFrame(placeSheetCard);
+    });
+    if (!$("cal-form")?.hidden) setTimeout(() => $("cal-title")?.focus(), 40);
   }
 
   function closeSheet() {
@@ -570,6 +631,7 @@
     sheet.classList.add("hidden");
     sheet.hidden = true;
     document.documentElement.classList.remove("cal-sheet-open");
+    clearSheetPos();
     state.editingId = null;
     state.deleteArmed = false;
   }
@@ -598,7 +660,6 @@
          <p class="cal-cook-copy">${hint} ${plan.title ? "Рацион «" + escapeHtml(plan.title) + "»." : ""}</p>
          <div class="cal-form-actions">
            <a class="cal-save" href="${PITANIE}">Открыть питание</a>
-           <button type="button" class="cal-cancel" id="cal-cook-close">Закрыть</button>
          </div>`
       : `<p class="cal-cook-copy">Слот уже не найден.</p>`;
     openSheet();
@@ -614,11 +675,27 @@
     const who = item?.who ? " · " + whoLabel(item.who) : "";
     $("cal-cook-wrap").innerHTML = item
       ? `<p class="cal-cook-meta">${escapeHtml(item.start)}${who}</p>
-         <p class="cal-cook-copy">${escapeHtml(item.note || "Это постоянное событие семейного календаря. Оно видно на всех устройствах.")}</p>
-         <div class="cal-form-actions">
-           <button type="button" class="cal-cancel" id="cal-cook-close">Закрыть</button>
-         </div>`
+         <p class="cal-cook-copy">${escapeHtml(item.note || "Это постоянное событие семейного календаря. Оно видно на всех устройствах.")}</p>`
       : `<p class="cal-cook-copy">Слот уже не найден.</p>`;
+    openSheet();
+    $("cal-cook-close")?.addEventListener("click", closeSheet);
+  }
+
+  function openNoteSlot(id) {
+    const item = noteEventsOn(state.selected).find((e) => e.id === id);
+    $("cal-form").hidden = true;
+    $("cal-cook-wrap").hidden = false;
+    $("cal-sheet-kicker").textContent = item?.who === "sasha" ? "дело Саши из заметок" : "дело Маши из заметок";
+    $("cal-sheet-title").textContent = item?.title || "Заметка";
+    const details = noteDetailsHtml(item?.details);
+    $("cal-cook-wrap").innerHTML = item
+      ? `<p class="cal-cook-meta">весь день · ${escapeHtml(whoLabel(item.who))}${item.done ? " · сделано" : ""}</p>
+         ${details}
+         <p class="cal-cook-copy">Срок и пояснение живут в заметках. Поменяете там — календарь обновится на всех устройствах.</p>
+         <div class="cal-form-actions">
+           <a class="cal-save" href="${NOTES}">Открыть заметки</a>
+         </div>`
+      : `<p class="cal-cook-copy">Дело уже не найдено.</p>`;
     openSheet();
     $("cal-cook-close")?.addEventListener("click", closeSheet);
   }
@@ -716,6 +793,14 @@
     $("cal-delete")?.addEventListener("click", deleteEvent);
     $("cal-sheet")?.addEventListener("click", (e) => {
       if (e.target === $("cal-sheet")) closeSheet();
+    });
+    window.addEventListener("resize", () => {
+      if ($("cal-sheet") && !$("cal-sheet").hidden) placeSheetCard();
+    });
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => {
+        if ($("cal-sheet") && !$("cal-sheet").hidden) placeSheetCard();
+      }, 120);
     });
   }
 

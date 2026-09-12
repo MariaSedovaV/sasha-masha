@@ -830,6 +830,18 @@ body.on-calendar .stage {
 .cal-item.shared { border-left: 3px solid var(--gold); }
 .cal-item.masha { border-left: 3px solid var(--rose); }
 .cal-item.sasha { border-left: 3px solid var(--sky); }
+.cal-item.note .cal-item-time {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.cal-item.is-done strong {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--gold) 70%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-decoration-skip-ink: none;
+}
 .cal-item-time {
   font-size: 12px;
   font-weight: 700;
@@ -865,22 +877,30 @@ body.on-calendar .stage {
   inset: 0;
   z-index: 50;
   display: grid;
-  place-items: end center;
+  place-items: center;
   background: color-mix(in srgb, var(--bg) 48%, transparent);
   backdrop-filter: blur(8px);
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding: 20px;
+  padding-top: max(20px, env(safe-area-inset-top));
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
 }
 .cal-sheet-card {
-  width: min(520px, 100%);
-  max-height: min(92dvh, 760px);
+  width: min(440px, 100%);
+  max-height: min(86dvh, 720px);
   overflow: auto;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 28px;
+  border-radius: 24px;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(22px);
   padding: 18px 18px 20px;
+}
+.cal-sheet-card.is-anchored {
+  margin: 0;
+  justify-self: start;
+  align-self: start;
 }
 .cal-sheet-head {
   display: flex;
@@ -1029,6 +1049,47 @@ body.on-calendar .stage {
   line-height: 1.55;
   font-size: 14px;
 }
+.cal-note-body {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+}
+.cal-note-p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.cal-note-li {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.cal-note-li i {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--sage) 70%, var(--line));
+  display: inline-block;
+}
+.cal-note-li.done i {
+  background: color-mix(in srgb, var(--sage) 82%, var(--gold));
+  border-color: transparent;
+}
+.cal-note-li.done span {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--gold) 75%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-decoration-skip-ink: none;
+}
 html.cal-sheet-open, html.cal-sheet-open body { overflow: hidden; }
 
 @media (max-width: 860px) {
@@ -1047,14 +1108,16 @@ html.cal-sheet-open, html.cal-sheet-open body { overflow: hidden; }
   .cal-nav h3 { font-size: 16px; min-width: 0; }
   .calendar .goals-lead { -webkit-line-clamp: 1; }
   .cal-sheet {
-    padding: 0;
-    place-items: end stretch;
+    padding: 16px;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    place-items: center;
   }
   .cal-sheet-card {
-    width: 100%;
-    max-width: none;
-    border-radius: 24px 24px 0 0;
-    max-height: calc(100svh - env(safe-area-inset-top, 0px) - 8px);
+    width: min(420px, 100%);
+    max-width: 100%;
+    border-radius: 22px;
+    max-height: min(82dvh, calc(100svh - 32px));
   }
   .cal-when { grid-template-columns: 1fr; }
 }
