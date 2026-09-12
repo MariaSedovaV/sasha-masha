@@ -10,6 +10,7 @@
   --sage: #8fbea8;
   --rose: #d9897a;
   --sky: #8aa4c7;
+  --ember: #d7a06a;
   --on-accent: #ffffff;
   --glow-1: rgba(212, 180, 131, 0.09);
   --glow-2: rgba(138, 164, 199, 0.08);
@@ -29,6 +30,7 @@ html[data-theme="light"] {
   --sage: #3f7a62;
   --rose: #b85a4c;
   --sky: #4d6f94;
+  --ember: #b56b32;
   --on-accent: #ffffff;
   --glow-1: rgba(154, 112, 64, 0.14);
   --glow-2: rgba(77, 111, 148, 0.1);
@@ -772,6 +774,7 @@ body.on-calendar .stage {
 }
 .dot.cook { background: var(--sage); }
 .dot.eat { background: var(--gold); }
+.dot.sport { background: var(--ember, #d7a06a); }
 .dot.masha { background: var(--rose); }
 .dot.sasha { background: var(--sky); }
 
@@ -828,6 +831,7 @@ body.on-calendar .stage {
 .cal-item:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
 .cal-item.cook { border-left: 3px solid var(--sage); }
 .cal-item.eat { border-left: 3px solid var(--gold); }
+.cal-item.sport { border-left: 3px solid var(--ember, #d7a06a); }
 .cal-item.masha { border-left: 3px solid var(--rose); }
 .cal-item.sasha { border-left: 3px solid var(--sky); }
 .cal-item-time {
