@@ -1,6 +1,6 @@
 (function (global) {
   const KEY_STORE = "sasha-butler-gemini";
-  const MODEL = "gemini-2.5-flash";
+  const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
   const HOME = "https://mariasedovav.github.io/sasha-masha/";
   const LINKS = {
     home: HOME,
@@ -27,10 +27,10 @@
         name: "open_section",
         description: "Открыть раздел семейного пространства.",
         parameters: {
-          type: "object",
+          type: "OBJECT",
           properties: {
             section: {
-              type: "string",
+              type: "STRING",
               enum: ["home", "budget", "pitanie", "zametki", "remont", "calendar", "goals"],
             },
           },
@@ -41,10 +41,10 @@
         name: "add_task",
         description: "Добавить дело Саше или Маше в заметки.",
         parameters: {
-          type: "object",
+          type: "OBJECT",
           properties: {
-            who: { type: "string", enum: ["sasha", "masha"] },
-            text: { type: "string" },
+            who: { type: "STRING", enum: ["sasha", "masha"] },
+            text: { type: "STRING" },
           },
           required: ["who", "text"],
         },
@@ -53,10 +53,10 @@
         name: "add_expense",
         description: "Записать трату в факт бюджета за текущий месяц.",
         parameters: {
-          type: "object",
+          type: "OBJECT",
           properties: {
-            amount: { type: "number" },
-            category: { type: "string", enum: CATS },
+            amount: { type: "NUMBER" },
+            category: { type: "STRING", enum: CATS },
           },
           required: ["amount", "category"],
         },
@@ -65,16 +65,16 @@
         name: "add_event",
         description: "Поставить событие в семейный календарь.",
         parameters: {
-          type: "object",
+          type: "OBJECT",
           properties: {
-            title: { type: "string" },
-            date: { type: "string", description: "YYYY-MM-DD" },
-            start: { type: "string", description: "HH:MM, пусто если весь день" },
-            end: { type: "string" },
-            allDay: { type: "boolean" },
-            who: { type: "string", enum: ["both", "sasha", "masha"] },
-            place: { type: "string" },
-            note: { type: "string" },
+            title: { type: "STRING" },
+            date: { type: "STRING", description: "YYYY-MM-DD" },
+            start: { type: "STRING", description: "HH:MM, пусто если весь день" },
+            end: { type: "STRING" },
+            allDay: { type: "BOOLEAN" },
+            who: { type: "STRING", enum: ["both", "sasha", "masha"] },
+            place: { type: "STRING" },
+            note: { type: "STRING" },
           },
           required: ["title", "date"],
         },
@@ -83,8 +83,8 @@
         name: "set_theme",
         description: "Переключить светлую или тёмную тему.",
         parameters: {
-          type: "object",
-          properties: { theme: { type: "string", enum: ["light", "dark"] } },
+          type: "OBJECT",
+          properties: { theme: { type: "STRING", enum: ["light", "dark"] } },
           required: ["theme"],
         },
       },
@@ -92,8 +92,8 @@
         name: "web_search",
         description: "Открыть поиск Яндекса, если нужен интернет.",
         parameters: {
-          type: "object",
-          properties: { query: { type: "string" } },
+          type: "OBJECT",
+          properties: { query: { type: "STRING" } },
           required: ["query"],
         },
       },
@@ -116,10 +116,20 @@
     try { return Boolean(localStorage.getItem(KEY_STORE)); } catch { return false; }
   }
   function getKey() {
-    try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; }
+    try {
+      return String(localStorage.getItem(KEY_STORE) || "")
+        .trim()
+        .replace(/^['"]+|['"]+$/g, "")
+        .replace(/\s+/g, "");
+    } catch {
+      return "";
+    }
   }
   function saveKey(value) {
-    const key = String(value || "").trim();
+    const key = String(value || "")
+      .trim()
+      .replace(/^['"]+|['"]+$/g, "")
+      .replace(/\s+/g, "");
     try {
       if (key) localStorage.setItem(KEY_STORE, key);
       else localStorage.removeItem(KEY_STORE);
@@ -280,33 +290,83 @@
     ].join("\n");
   }
 
-  async function gemini(contents, ctx) {
+  function explainError(err) {
+    const raw = String(err?.message || err || "");
+    const low = raw.toLowerCase();
+    if (err?.name === "AbortError" || /abort|timeout/i.test(raw)) {
+      return "Google AI слишком долго отвечает. Нажмите «Отправить» ещё раз.";
+    }
+    if (/failed to fetch|networkerror|load failed/i.test(raw)) {
+      return "Не удалось связаться с Google AI. Проверьте интернет и что ключ не ограничен чужим сайтом.";
+    }
+    if (/api[_ ]key not valid|invalid.*key|api_key_invalid|403|401/i.test(low)) {
+      return "Ключ Google AI не принят. Создайте новый на aistudio.google.com/apikey и вставьте ещё раз кнопкой «ключ».";
+    }
+    if (/not found|404|not supported/i.test(low)) {
+      return "Эта модель Google AI сейчас недоступна для ключа. Создайте ключ в AI Studio ещё раз — без ограничения по сайту.";
+    }
+    return "Умный режим не ответил: " + raw.replace(/key=[^&\s]+/gi, "key=…").slice(0, 180);
+  }
+
+  async function gemini(contents, ctx, model, withThinkingOff) {
     const key = getKey();
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + MODEL + ":generateContent?key=" + encodeURIComponent(key);
+    if (!key) throw new Error("no key");
+    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
     const body = {
       systemInstruction: { parts: [{ text: systemPrompt(ctx) }] },
       contents,
       tools: TOOLS,
-      generationConfig: { temperature: 0.3, maxOutputTokens: 512 },
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+      },
     };
+    if (withThinkingOff) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 20000);
+    const t = setTimeout(() => ctrl.abort(), 25000);
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": key,
+        },
         body: JSON.stringify(body),
         signal: ctrl.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const msg = data?.error?.message || ("HTTP " + res.status);
-        throw new Error(msg);
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
       }
-      return data?.candidates?.[0]?.content || { parts: [] };
+      const cand = data?.candidates?.[0];
+      if (!cand) {
+        const block = data?.promptFeedback?.blockReason;
+        throw new Error(block ? "Ответ заблокирован фильтром: " + block : "Пустой ответ модели");
+      }
+      return cand.content || { parts: [] };
     } finally {
       clearTimeout(t);
     }
+  }
+
+  async function geminiWithFallback(contents, ctx) {
+    let last = null;
+    for (const model of MODELS) {
+      for (const thinkingOff of [true, false]) {
+        try {
+          return await gemini(contents, ctx, model, thinkingOff);
+        } catch (err) {
+          last = err;
+          const msg = String(err?.message || "");
+          if (/api[_ ]key not valid|api_key_invalid|permission|403|401/i.test(msg)) throw err;
+          if (err?.name === "AbortError" || /abort|failed to fetch/i.test(msg)) throw err;
+        }
+      }
+    }
+    throw last || new Error("no model");
   }
 
   function partText(content) {
@@ -321,14 +381,18 @@
     const contents = history.slice(-6);
     contents.push({ role: "user", parts: [{ text: String(text || "").trim() }] });
     let extra = {};
-    let content = await gemini(contents, ctx);
+    let content = await geminiWithFallback(contents, ctx);
     for (let i = 0; i < 3; i += 1) {
       const calls = partCalls(content);
       if (!calls.length) break;
       contents.push({ role: "model", parts: content.parts });
       const responses = [];
       for (const call of calls) {
-        const result = runTool(call.name, call.args || {});
+        let args = call.args || call.arguments || {};
+        if (typeof args === "string") {
+          try { args = JSON.parse(args); } catch { args = {}; }
+        }
+        const result = runTool(call.name, args);
         extra = { ...extra, ...(result.extra || {}) };
         responses.push({
           functionResponse: {
@@ -338,7 +402,7 @@
         });
       }
       contents.push({ role: "user", parts: responses });
-      content = await gemini(contents, ctx);
+      content = await geminiWithFallback(contents, ctx);
     }
     const say = partText(content) || extra.say || "Готово.";
     history.push({ role: "user", parts: [{ text: String(text || "").trim() }] });
@@ -380,7 +444,7 @@
     row.className = "assist-key-row";
     row.id = "assist-key-row";
     row.innerHTML = `
-      <input id="assist-key-input" type="password" maxlength="120" placeholder="Ключ Google AI Studio" autocomplete="off" />
+      <input id="assist-key-input" type="password" maxlength="200" placeholder="Ключ Google AI Studio" autocomplete="off" />
       <button type="button" id="assist-key-save">Сохранить</button>`;
     const log = document.getElementById("assist-log");
     panel.insertBefore(row, log || head.nextSibling);
@@ -417,7 +481,7 @@
     });
   }
 
-  global.SashaButler = { hasKey, saveKey, ask, attach, greeting() {
+  global.SashaButler = { hasKey, saveKey, ask, attach, explainError, greeting() {
     return hasKey()
       ? "Привет. Спросите как угодно — открыть раздел, записать дело, трату или встречу, спросить, что завтра."
       : "Привет. Могу открыть разделы и записать дело или трату. Чтобы понимать свободные фразы, нажмите «ключ» и вставьте ключ Google AI.";
