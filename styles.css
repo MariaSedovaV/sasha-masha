@@ -772,9 +772,7 @@ body.on-calendar .stage {
   border-radius: 50%;
   display: inline-block;
 }
-.dot.cook { background: var(--sage); }
-.dot.eat { background: var(--gold); }
-.dot.sport { background: var(--ember, #d7a06a); }
+.dot.shared { background: var(--gold); }
 .dot.masha { background: var(--rose); }
 .dot.sasha { background: var(--sky); }
 
@@ -829,9 +827,7 @@ body.on-calendar .stage {
   cursor: pointer;
 }
 .cal-item:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
-.cal-item.cook { border-left: 3px solid var(--sage); }
-.cal-item.eat { border-left: 3px solid var(--gold); }
-.cal-item.sport { border-left: 3px solid var(--ember, #d7a06a); }
+.cal-item.shared { border-left: 3px solid var(--gold); }
 .cal-item.masha { border-left: 3px solid var(--rose); }
 .cal-item.sasha { border-left: 3px solid var(--sky); }
 .cal-item-time {

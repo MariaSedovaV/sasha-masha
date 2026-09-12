@@ -22,6 +22,7 @@
   };
   const WHO_KEY = "sasha-masha-calendar-who";
   const PITANIE = "https://mariasedovav.github.io/sasha-masha-pitanie/";
+  const NOTES = "https://mariasedovav.github.io/sasha-masha-zametki/";
   const WEEKLY_EVENTS = [
     {
       id: "training",
@@ -235,6 +236,48 @@
     return (cloud().calendar || []).filter((e) => e && !e.deleted);
   }
 
+  function notePreview(task) {
+    const blocks = Array.isArray(task?.details) ? task.details : [];
+    const first = blocks.find((b) => String(b.text || "").trim());
+    return first ? String(first.text).trim() : "";
+  }
+
+  function noteEventsOn(iso) {
+    const notes = cloud().notes || {};
+    const out = [];
+    ["sasha", "masha"].forEach((who) => {
+      (notes[who] || []).forEach((task) => {
+        if (!task || task.deleted || String(task.due || "") !== iso) return;
+        out.push({
+          id: "note|" + who + "|" + task.id,
+          kind: "note",
+          date: iso,
+          start: "",
+          end: "",
+          allDay: true,
+          title: task.text || "Дело",
+          who,
+          done: !!task.done,
+          details: Array.isArray(task.details) ? task.details : [],
+          preview: notePreview(task),
+          noteId: task.id,
+        });
+      });
+    });
+    return out;
+  }
+
+  function noteDetailsHtml(blocks) {
+    const list = Array.isArray(blocks) ? blocks : [];
+    if (!list.length) return "";
+    return `<div class="cal-note-body">${list.map((b) => {
+      if (b.type === "li") {
+        return `<p class="cal-note-li${b.done ? " done" : ""}"><i></i><span>${escapeHtml(b.text)}</span></p>`;
+      }
+      return `<p class="cal-note-p">${escapeHtml(b.text)}</p>`;
+    }).join("")}</div>`;
+  }
+
   function cookEventsOn(iso) {
     const { items } = nutritionPlan();
     const code = weekdayCode(parseIso(iso));
@@ -305,15 +348,11 @@
   }
 
   function marksFor(iso) {
-    const cook = cookEventsOn(iso).length > 0;
-    const eat = mealEventsOn(iso).length > 0;
     const weekly = weeklyEventsOn(iso);
     const users = userEventsOn(iso);
     return {
-      cook,
-      eat,
-      sport: weekly.some((e) => e.ruleId === "training"),
-      masha: users.some((e) => e.who === "masha"),
+      shared: mealEventsOn(iso).length > 0 || weekly.some((e) => !e.who),
+      masha: users.some((e) => e.who === "masha") || cookEventsOn(iso).length > 0,
       sasha: users.some((e) => e.who === "sasha") || weekly.some((e) => e.who === "sasha"),
     };
   }
@@ -369,9 +408,7 @@
         iso === state.selected ? "is-selected" : "",
       ].filter(Boolean).join(" ");
       const dots = [
-        marks.cook ? '<i class="dot cook" title="Приготовление еды"></i>' : "",
-        marks.eat ? '<i class="dot eat" title="Приём пищи"></i>' : "",
-        marks.sport ? '<i class="dot sport" title="Тренировка"></i>' : "",
+        marks.shared ? '<i class="dot shared" title="Общие мероприятия"></i>' : "",
         marks.masha ? '<i class="dot masha" title="Маша"></i>' : "",
         marks.sasha ? '<i class="dot sasha" title="Саша"></i>' : "",
       ].join("");
@@ -408,27 +445,27 @@
         if (item.kind === "cook") {
           const cover = item.cover ? ` на ${escapeHtml(item.cover)}` : "";
           const batch = item.cookKind === "same-day" ? "в тот же день" : "партия" + cover;
-          return `<button type="button" class="cal-item cook" data-cook="${escapeHtml(item.id)}">
+          return `<button type="button" class="cal-item masha" data-cook="${escapeHtml(item.id)}">
             <span class="cal-item-time">${escapeHtml(item.start)}</span>
             <span class="cal-item-body">
-              <em>Приготовление еды · ${escapeHtml(item.mealType)}</em>
+              <em>Маша</em>
               <strong>${escapeHtml(item.title)}</strong>
-              <small>${batch}</small>
+              <small>приготовление · ${escapeHtml(item.mealType)} · ${batch}</small>
             </span>
           </button>`;
         }
         if (item.kind === "eat") {
-          return `<button type="button" class="cal-item eat" data-eat="${escapeHtml(item.id)}">
+          return `<button type="button" class="cal-item shared" data-eat="${escapeHtml(item.id)}">
             <span class="cal-item-time">${escapeHtml(item.start)}</span>
             <span class="cal-item-body">
-              <em>Приём пищи · ${escapeHtml(item.mealType)}</em>
+              <em>общее · ${escapeHtml(item.mealType)}</em>
               <strong>${escapeHtml(item.title)}</strong>
             </span>
           </button>`;
         }
         if (item.kind === "week") {
-          const cls = item.who === "sasha" ? "sasha" : item.who === "masha" ? "masha" : "sport";
-          const kicker = item.who ? whoLabel(item.who) : "каждую неделю";
+          const cls = item.who === "sasha" ? "sasha" : item.who === "masha" ? "masha" : "shared";
+          const kicker = item.who ? whoLabel(item.who) : "общее";
           return `<button type="button" class="cal-item ${cls}" data-week="${escapeHtml(item.id)}">
             <span class="cal-item-time">${escapeHtml(item.start)}</span>
             <span class="cal-item-body">
@@ -459,9 +496,7 @@
         <button type="button" class="cal-add" id="cal-add">+ событие</button>
       </div>
       <div class="cal-legend">
-        <span><i class="dot cook"></i> Приготовление еды</span>
-        <span><i class="dot eat"></i> Приём пищи</span>
-        <span><i class="dot sport"></i> Тренировка</span>
+        <span><i class="dot shared"></i> общие мероприятия</span>
         <span><i class="dot masha"></i> Маша</span>
         <span><i class="dot sasha"></i> Саша</span>
       </div>
@@ -553,7 +588,7 @@
     const isEat = kind === "eat";
     $("cal-form").hidden = true;
     $("cal-cook-wrap").hidden = false;
-    $("cal-sheet-kicker").textContent = isEat ? "приём пищи из рациона" : "приготовление еды из рациона";
+    $("cal-sheet-kicker").textContent = isEat ? "общее мероприятие" : "приготовление еды · Маша";
     $("cal-sheet-title").textContent = item?.title || (isEat ? "Приём пищи" : "Приготовление еды");
     const hint = isEat
       ? "Это время приёма из вкладки Питание. Меняется там — здесь напоминание, когда садиться за стол."
@@ -574,7 +609,7 @@
     const item = weeklyEventsOn(state.selected).find((e) => e.id === id);
     $("cal-form").hidden = true;
     $("cal-cook-wrap").hidden = false;
-    $("cal-sheet-kicker").textContent = "повторяется каждую неделю";
+    $("cal-sheet-kicker").textContent = item?.who ? "повторяется каждую неделю" : "общее мероприятие";
     $("cal-sheet-title").textContent = item?.title || "Событие";
     const who = item?.who ? " · " + whoLabel(item.who) : "";
     $("cal-cook-wrap").innerHTML = item
