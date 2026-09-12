@@ -642,7 +642,7 @@
         if (item.kind === "note") {
           const cls = item.who === "sasha" ? "sasha" : "masha";
           return `<button type="button" class="cal-item ${cls} note${item.done ? " is-done" : ""}" data-note="${escapeHtml(item.id)}">
-            <span class="cal-item-time">Напоминание</span>
+            <span class="cal-item-time" title="Напоминание"><i class="cal-item-bell">${bellSvg()}</i></span>
             <span class="cal-item-body">
               <em>${escapeHtml(whoLabel(item.who))}</em>
               <strong>${escapeHtml(item.title)}</strong>
