@@ -749,7 +749,8 @@ body.on-calendar .stage {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 4px;
   padding: 6px 7px 5px;
   text-align: left;
 }
@@ -765,7 +766,7 @@ body.on-calendar .stage {
   font-weight: 700;
   letter-spacing: -0.03em;
 }
-.cal-dots { display: flex; gap: 4px; min-height: 7px; }
+.cal-dots { display: flex; gap: 3px; min-height: 6px; margin-top: 0; }
 .dot {
   width: 7px;
   height: 7px;
