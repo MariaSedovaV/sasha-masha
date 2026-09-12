@@ -110,7 +110,27 @@
   }
   function addNote(person, text) {
     const notes = loadNotes();
-    notes[person].push({ id: uid(), text, done: false, at: Date.now(), updatedAt: Date.now() });
+    let author = person;
+    try {
+      const session = JSON.parse(localStorage.getItem("sasha-session") || "null");
+      if (session?.v === 1 && (session.id === "sasha" || session.id === "masha")) author = session.id;
+      else {
+        const who = localStorage.getItem("sasha-notes-who");
+        if (who === "sasha" || who === "masha") author = who;
+      }
+    } catch {}
+    notes[person].push({
+      id: uid(),
+      text,
+      done: false,
+      at: Date.now(),
+      updatedAt: Date.now(),
+      author,
+      due: "",
+      details: [],
+      archived: false,
+      doneAt: 0,
+    });
     localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
     if (window.SashaCloud && typeof window.SashaCloud.setNotes === "function") {
       window.SashaCloud.setNotes(notes);

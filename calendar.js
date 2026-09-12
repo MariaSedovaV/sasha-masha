@@ -350,7 +350,8 @@
     const out = [];
     ["sasha", "masha"].forEach((who) => {
       (notes[who] || []).forEach((task) => {
-        if (!task || task.deleted || String(task.due || "") !== iso) return;
+        if (!task || task.deleted || task.archived || String(task.due || "") !== iso) return;
+        if (task.done && Number(task.doneAt || 0) && Date.now() - Number(task.doneAt) >= 30 * 24 * 60 * 60 * 1000) return;
         out.push({
           id: "note|" + who + "|" + task.id,
           kind: "note",
