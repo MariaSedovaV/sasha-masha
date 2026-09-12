@@ -331,6 +331,12 @@ body.is-media .page {
   white-space: nowrap;
   flex-shrink: 0;
 }
+label.add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
 .table-wrap {
   margin-top: 14px;
   overflow: auto;
@@ -495,6 +501,7 @@ body.is-media .page {
 }
 .mood-reset { margin: 10px 0 14px; align-items: flex-start; }
 .drop-zone {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -508,6 +515,18 @@ body.is-media .page {
   color: var(--muted);
   text-align: center;
   cursor: pointer;
+  overflow: hidden;
+}
+.file-ghost {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 80px;
 }
 .drop-zone strong { color: var(--ink); font-size: 14px; }
 .drop-zone span { font-size: 12px; line-height: 1.4; }
@@ -516,7 +535,8 @@ body.is-media .page {
   background: color-mix(in srgb, var(--gold) 14%, var(--bg));
 }
 .drop-zone-compact { min-height: 76px; margin-bottom: 12px; }
-.media-empty {
+.media-empty,
+.media-status {
   margin: 14px 0 0;
   color: var(--muted);
   font-size: 13px;
@@ -633,10 +653,15 @@ body.is-media .page {
   height: 100%;
   max-height: none;
 }
+.sheet[open],
 .lightbox[open] {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding: 8vh 10px max(16px, env(safe-area-inset-bottom));
+}
+.lightbox[open] {
+  align-items: center;
 }
 html:has(.lightbox[open]) .assist-dock,
 html:has(.sheet[open]) .assist-dock {

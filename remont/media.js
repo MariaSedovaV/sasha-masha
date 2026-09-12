@@ -143,36 +143,90 @@
     renderAll();
   }
 
-  function compressImage(file) {
+  function isImageFile(file) {
+    if (!file) return false;
+    const type = String(file.type || "").toLowerCase();
+    if (type.indexOf("image/") === 0) return true;
+    if (/\.(jpe?g|png|webp|gif|heic|heif|bmp|tiff?)$/i.test(file.name || "")) return true;
+    return !type && !file.name;
+  }
+
+  function fitSize(w, h) {
+    if (!w || !h) return [0, 0];
+    if (Math.max(w, h) > PHOTO_MAX) {
+      const scale = PHOTO_MAX / Math.max(w, h);
+      return [Math.round(w * scale), Math.round(h * scale)];
+    }
+    return [w, h];
+  }
+
+  function canvasJpeg(source, w, h) {
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) throw new Error("bad-image");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(source, 0, 0, w, h);
+    const data = canvas.toDataURL("image/jpeg", 0.68);
+    if (!data || data.length < 40) throw new Error("bad-image");
+    return data;
+  }
+
+  function loadImage(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        let w = img.naturalWidth || img.width;
-        let h = img.naturalHeight || img.height;
-        if (!w || !h) {
-          URL.revokeObjectURL(url);
-          reject(new Error("bad-image"));
-          return;
-        }
-        if (Math.max(w, h) > PHOTO_MAX) {
-          const scale = PHOTO_MAX / Math.max(w, h);
-          w = Math.round(w * scale);
-          h = Math.round(h * scale);
-        }
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL("image/jpeg", 0.68));
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("bad-image"));
-      };
-      img.src = url;
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("bad-image"));
+      img.src = src;
     });
+  }
+
+  function setPhotoStatus(text) {
+    const el = $("photo-status");
+    if (!el) return;
+    el.hidden = !text;
+    el.textContent = text || "";
+  }
+
+  async function compressImage(file) {
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bmp = await createImageBitmap(file);
+        const [w, h] = fitSize(bmp.width, bmp.height);
+        if (w && h) {
+          const data = canvasJpeg(bmp, w, h);
+          if (typeof bmp.close === "function") bmp.close();
+          return data;
+        }
+        if (typeof bmp.close === "function") bmp.close();
+      } catch {}
+    }
+
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await loadImage(url);
+      const [w, h] = fitSize(img.naturalWidth || img.width, img.naturalHeight || img.height);
+      if (!w || !h) throw new Error("bad-image");
+      return canvasJpeg(img, w, h);
+    } catch (err) {
+      const type = String(file.type || "").toLowerCase();
+      const rawOk = (
+        type === "image/jpeg" ||
+        type === "image/jpg" ||
+        type === "image/png" ||
+        type === "image/webp" ||
+        /\.(jpe?g|png|webp)$/i.test(file.name || "")
+      );
+      if (rawOk && file.size <= FILE_MAX) {
+        const data = await readFile(file);
+        if (data) return data;
+      }
+      throw err;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   function readFile(file) {
@@ -190,10 +244,6 @@
 
   function bindDrop(zone, input, onFiles) {
     if (!zone || !input) return;
-    zone.addEventListener("click", (e) => {
-      if (e.target === input) return;
-      input.click();
-    });
     zone.addEventListener("dragover", (e) => {
       e.preventDefault();
       zone.classList.add("on");
@@ -205,8 +255,11 @@
       onFiles(e.dataTransfer && e.dataTransfer.files);
     });
     input.addEventListener("change", () => {
-      onFiles(input.files);
-      input.value = "";
+      const picked = [...(input.files || [])];
+      onFiles(picked);
+      setTimeout(() => {
+        input.value = "";
+      }, 400);
     });
   }
 
@@ -230,8 +283,12 @@
     if (preview) {
       preview.innerHTML = images.map((item) => `<img src="${item.data}" alt="" />`).join("");
     }
-    if (typeof sheet.showModal === "function") sheet.showModal();
-    else sheet.setAttribute("open", "");
+    try {
+      if (typeof sheet.showModal === "function") sheet.showModal();
+      else sheet.setAttribute("open", "");
+    } catch {
+      sheet.setAttribute("open", "");
+    }
   }
 
   function closeSheet() {
@@ -243,21 +300,36 @@
   }
 
   async function takePhotos(list) {
-    const picked = [...(list || [])].filter((file) => file && file.type.indexOf("image/") === 0);
-    if (!picked.length) return;
+    const picked = [...(list || [])].filter(isImageFile);
+    if (!picked.length) {
+      if (list && list.length) {
+        window.alert("Это не похоже на фото. Выберите снимок из галереи или файл JPG, PNG, HEIC.");
+      }
+      return;
+    }
+    setPhotoStatus("Готовлю фото…");
     const ready = [];
+    let failed = 0;
     for (const file of picked) {
       try {
         ready.push({ name: file.name, data: await compressImage(file) });
       } catch {
+        failed += 1;
+      }
+    }
+    setPhotoStatus("");
+    if (ready.length) {
+      openSheet(ready);
+      if (failed) {
         const error = $("sheet-error");
         if (error) {
           error.hidden = false;
-          error.textContent = "Это фото не получилось прочитать. Попробуйте JPG или PNG.";
+          error.textContent = failed + " фото не получилось прочитать. Остальные можно сохранить.";
         }
       }
+      return;
     }
-    if (ready.length) openSheet(ready);
+    window.alert("Фото не получилось прочитать. Если это снимок с iPhone, в Настройках → Камера → Форматы выберите «Наиболее совместимые», или сохраните как JPG.");
   }
 
   async function takeFiles(list) {
@@ -382,8 +454,6 @@
     renderAll();
     loadMedia();
 
-    $("add-photos").addEventListener("click", () => $("photo-input").click());
-    $("add-files").addEventListener("click", () => $("file-input").click());
     bindDrop($("photo-drop"), $("photo-input"), takePhotos);
     bindDrop($("file-drop"), $("file-input"), takeFiles);
 
