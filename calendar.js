@@ -20,6 +20,15 @@
     "Перекус 2": "16:00",
     "Перекус 3": "21:00",
   };
+  const BREAKFAST_BY_DAY = {
+    ПН: { cook: "06:15", eat: "06:30" },
+    ВТ: { cook: "06:15", eat: "06:30" },
+    СР: { cook: "06:15", eat: "06:30" },
+    ЧТ: { cook: "06:15", eat: "06:30" },
+    ПТ: { cook: "06:15", eat: "06:30" },
+    СБ: { cook: "09:30", eat: "10:00" },
+    ВС: { cook: "09:30", eat: "10:00" },
+  };
   const WHO_KEY = "sasha-masha-calendar-who";
   const PITANIE = "https://mariasedovav.github.io/sasha-masha-pitanie/";
   const NOTES = "https://mariasedovav.github.io/sasha-masha-zametki/";
@@ -28,9 +37,9 @@
       id: "training",
       title: "Тренировка",
       start: "07:00",
-      weekdays: ["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"],
+      weekdays: ["ПН", "ВТ", "СР", "ЧТ", "ПТ"],
       who: "",
-      note: "Каждое утро, с понедельника по понедельник.",
+      note: "Каждое утро с понедельника по пятницу.",
     },
     {
       id: "sasha-box-sat",
@@ -54,6 +63,7 @@
     cursor: startOfMonth(new Date()),
     selected: isoDate(new Date()),
     editingId: null,
+    editingRepeatId: null,
     deleteArmed: false,
   };
 
@@ -111,11 +121,20 @@
   }
 
   function saveWho(who) {
+    if (who !== "sasha" && who !== "masha") return;
     try { localStorage.setItem(WHO_KEY, who); } catch {}
   }
 
   function whoLabel(who) {
-    return who === "sasha" ? "Саша" : "Маша";
+    if (who === "sasha") return "Саша";
+    if (who === "masha") return "Маша";
+    return "общее";
+  }
+
+  function whoClass(who) {
+    if (who === "sasha") return "sasha";
+    if (who === "masha") return "masha";
+    return "shared";
   }
 
   function formatDayTitle(iso) {
@@ -145,14 +164,56 @@
     return null;
   }
 
+  function breakfastSlot(dayId) {
+    return BREAKFAST_BY_DAY[dayId] || BREAKFAST_BY_DAY.ПН;
+  }
+
+  function isLegacyBreakfastCustom(custom) {
+    if (!custom) return true;
+    const cook = String(custom.cook?.time || "");
+    const eat = String(custom.eat?.time || "");
+    const legacyPairs = new Set([
+      "07:30|08:00", "07:30|07:30", "07:00|07:00", "08:00|08:00",
+      "06:15|06:40", "09:30|10:30",
+      "|08:00", "07:30|",
+    ]);
+    return legacyPairs.has(cook + "|" + eat) || (!cook && !eat);
+  }
+
+  function isLegacyBreakfastCookTime(time) {
+    return ["07:30", "07:00", "08:00"].includes(String(time || ""));
+  }
+
+  function isLegacyBreakfastEatTime(time) {
+    return ["08:00", "07:30", "07:00", "06:40", "10:30"].includes(String(time || ""));
+  }
+
+  function normalizeCookItem(item) {
+    const next = { ...item, who: "masha" };
+    if (item.mealType === "Завтрак") {
+      const slot = breakfastSlot(item.weekday);
+      if (isLegacyBreakfastCookTime(item.time)) next.time = slot.cook;
+    }
+    return next;
+  }
+
+  function normalizeMealItem(item) {
+    const next = { ...item, who: "" };
+    if (item.mealType === "Завтрак") {
+      const slot = breakfastSlot(item.weekday);
+      if (isLegacyBreakfastEatTime(item.time)) next.time = slot.eat;
+    }
+    return next;
+  }
+
   function buildPlanFromIndex(pinned, plan) {
     const ration = (window.COOKING_INDEX || []).find((r) => String(r.id) === String(pinned));
     if (!ration) {
       return {
         rationId: pinned || null,
         title: plan?.title || "",
-        items: plan?.items || [],
-        meals: plan?.meals || [],
+        items: (plan?.items || []).map(normalizeCookItem),
+        meals: (plan?.meals || []).map(normalizeMealItem),
       };
     }
     const items = [];
@@ -163,18 +224,44 @@
         const custom = scheduleLookup(ration.id, day.id, meal.id);
         const isMain = meal.id === "Обед" || meal.id === "Ужин";
         const isBreakfast = meal.id === "Завтрак";
-        if (isMain || isBreakfast) {
+        if (isBreakfast) {
+          const slot = breakfastSlot(day.id);
+          const useCustom = custom && !isLegacyBreakfastCustom(custom);
+          const cookTime = useCustom && custom.cook?.time ? custom.cook.time : slot.cook;
+          const cookDay = useCustom && custom.cook?.dayId ? custom.cook.dayId : day.id;
+          const eatTime = useCustom && custom.eat?.time ? custom.eat.time : slot.eat;
+          const eatDay = useCustom && custom.eat?.dayId ? custom.eat.dayId : day.id;
+          const key = cookDay + "|" + cookTime + "|" + meal.id + "|" + meal.title + "|";
+          if (!seenCook.has(key)) {
+            seenCook.add(key);
+            items.push(normalizeCookItem({
+              weekday: cookDay,
+              time: cookTime,
+              mealType: meal.id,
+              title: meal.title,
+              cover: "",
+              kind: "same-day",
+              eatDay: day.id,
+            }));
+          }
+          meals.push(normalizeMealItem({
+            weekday: eatDay,
+            time: eatTime,
+            mealType: meal.id,
+            title: meal.title,
+          }));
+          return;
+        }
+        if (isMain) {
           let cookDay = day.id;
           let time = "07:30";
           let cover = "";
           let kind = "same-day";
-          if (isMain) {
-            const block = COOK_BLOCKS[day.id] || COOK_BLOCKS.ВС;
-            cookDay = block.cookDay;
-            time = block.cookTime;
-            cover = block.cover;
-            kind = "batch";
-          }
+          const block = COOK_BLOCKS[day.id] || COOK_BLOCKS.ВС;
+          cookDay = block.cookDay;
+          time = block.cookTime;
+          cover = block.cover;
+          kind = "batch";
           if (custom?.cook) {
             if (custom.cook.time) time = custom.cook.time;
             if (custom.cook.dayId) cookDay = custom.cook.dayId;
@@ -185,7 +272,7 @@
             const key = cookDay + "|" + time + "|" + meal.id + "|" + meal.title + "|" + cover;
             if (!seenCook.has(key)) {
               seenCook.add(key);
-              items.push({
+              items.push(normalizeCookItem({
                 weekday: cookDay,
                 time,
                 mealType: meal.id,
@@ -193,19 +280,19 @@
                 cover,
                 kind,
                 eatDay: day.id,
-              });
+              }));
             }
           }
         }
         const eatTime = custom?.eat?.time || EAT_TIMES[meal.id] || "12:00";
         const eatDay = custom?.eat?.dayId || day.id;
         if (eatTime) {
-          meals.push({
+          meals.push(normalizeMealItem({
             weekday: eatDay,
             time: eatTime,
             mealType: meal.id,
             title: meal.title,
-          });
+          }));
         }
       });
     });
@@ -216,19 +303,31 @@
     const snap = cloud();
     const pinned = snap.pinned?.id;
     const plan = snap.cookingPlan;
-    const fromCloud = planMatchesPinned(plan, pinned);
-    const cloudCook = fromCloud && Array.isArray(plan.items) && plan.items.length ? plan.items : null;
-    const cloudMeals = fromCloud && Array.isArray(plan.meals) && plan.meals.length ? plan.meals : null;
-    if (cloudCook && cloudMeals) {
-      return { rationId: plan.rationId, title: plan.title || "", items: cloudCook, meals: cloudMeals };
+    // Всегда собираем из индекса + актуальных schedules — календарь не отстаёт от питания.
+    if (pinned && Array.isArray(window.COOKING_INDEX) && window.COOKING_INDEX.length) {
+      const built = buildPlanFromIndex(pinned, plan);
+      return {
+        rationId: built.rationId,
+        title: built.title || plan?.title || "",
+        items: built.items,
+        meals: built.meals,
+      };
     }
-    if (!pinned && !cloudCook && !cloudMeals) return { rationId: null, title: "", items: [], meals: [] };
-    const built = buildPlanFromIndex(pinned, plan);
+    const fromCloud = planMatchesPinned(plan, pinned);
+    const cloudCook = fromCloud && Array.isArray(plan.items) && plan.items.length
+      ? plan.items.map(normalizeCookItem)
+      : [];
+    const cloudMeals = fromCloud && Array.isArray(plan.meals) && plan.meals.length
+      ? plan.meals.map(normalizeMealItem)
+      : [];
+    if (!cloudCook.length && !cloudMeals.length) {
+      return { rationId: pinned || null, title: plan?.title || "", items: [], meals: [] };
+    }
     return {
-      rationId: built.rationId,
-      title: built.title || plan?.title || "",
-      items: cloudCook || built.items,
-      meals: cloudMeals || built.meals,
+      rationId: plan?.rationId || pinned || null,
+      title: plan?.title || "",
+      items: cloudCook,
+      meals: cloudMeals,
     };
   }
 
@@ -294,6 +393,7 @@
         mealType: item.mealType,
         cover: item.cover || "",
         cookKind: item.kind,
+        who: "masha",
       }));
   }
 
@@ -311,6 +411,7 @@
         allDay: false,
         title: item.title,
         mealType: item.mealType,
+        who: "",
       }));
   }
 
@@ -329,21 +430,66 @@
       });
   }
 
+  function weeklyRules() {
+    const cloudMap = cloud().calendarRepeat || {};
+    const ids = new Set([...WEEKLY_EVENTS.map((r) => r.id), ...Object.keys(cloudMap)]);
+    const out = [];
+    ids.forEach((id) => {
+      const def = WEEKLY_EVENTS.find((r) => r.id === id) || {
+        id,
+        title: "",
+        start: "09:00",
+        end: "",
+        allDay: false,
+        weekdays: [],
+        who: "",
+        note: "",
+        place: "",
+      };
+      const custom = cloudMap[id];
+      if (custom?.deleted) return;
+      const weekdays = Array.isArray(custom?.weekdays) && custom.weekdays.length
+        ? custom.weekdays
+        : def.weekdays;
+      out.push({
+        ...def,
+        ...(custom || {}),
+        id,
+        weekdays,
+        exceptions: Array.isArray(custom?.exceptions) ? custom.exceptions : [],
+      });
+    });
+    return out;
+  }
+
   function weeklyEventsOn(iso) {
     const code = weekdayCode(parseIso(iso));
-    return WEEKLY_EVENTS
-      .filter((item) => item.weekdays.includes(code) && item.start)
+    const overrides = new Set(
+      userEvents()
+        .filter((e) => e.repeatId && e.date === iso)
+        .map((e) => String(e.repeatId))
+    );
+    return weeklyRules()
+      .filter((item) => {
+        if (!(item.weekdays || []).includes(code)) return false;
+        if (!item.allDay && !item.start) return false;
+        if ((item.exceptions || []).includes(iso)) return false;
+        if (overrides.has(String(item.id))) return false;
+        return true;
+      })
       .map((item) => ({
         id: "week|" + item.id + "|" + iso,
         ruleId: item.id,
         kind: "week",
         date: iso,
-        start: item.start,
-        end: "",
-        allDay: false,
+        start: item.start || "",
+        end: item.end || "",
+        allDay: Boolean(item.allDay),
         title: item.title,
         who: item.who || "",
         note: item.note || "",
+        place: item.place || "",
+        weekdays: item.weekdays,
       }));
   }
 
@@ -445,14 +591,11 @@
     const listHtml = rows.length
       ? rows.map((item) => {
         if (item.kind === "cook") {
-          const cover = item.cover ? ` на ${escapeHtml(item.cover)}` : "";
-          const batch = item.cookKind === "same-day" ? "в тот же день" : "партия" + cover;
           return `<button type="button" class="cal-item masha" data-cook="${escapeHtml(item.id)}">
             <span class="cal-item-time">${escapeHtml(item.start)}</span>
             <span class="cal-item-body">
               <em>Маша</em>
               <strong>${escapeHtml(item.title)}</strong>
-              <small>приготовление · ${escapeHtml(item.mealType)} · ${batch}</small>
             </span>
           </button>`;
         }
@@ -466,12 +609,11 @@
           </button>`;
         }
         if (item.kind === "week") {
-          const cls = item.who === "sasha" ? "sasha" : item.who === "masha" ? "masha" : "shared";
-          const kicker = item.who ? whoLabel(item.who) : "общее";
+          const cls = whoClass(item.who);
           return `<button type="button" class="cal-item ${cls}" data-week="${escapeHtml(item.id)}">
-            <span class="cal-item-time">${escapeHtml(item.start)}</span>
+            <span class="cal-item-time">${escapeHtml(eventTimeLabel(item))}</span>
             <span class="cal-item-body">
-              <em>${escapeHtml(kicker)}</em>
+              <em>${escapeHtml(whoLabel(item.who))}</em>
               <strong>${escapeHtml(item.title)}</strong>
             </span>
           </button>`;
@@ -487,7 +629,7 @@
             </span>
           </button>`;
         }
-        return `<button type="button" class="cal-item ${item.who || "masha"}" data-id="${escapeHtml(item.id)}">
+        return `<button type="button" class="cal-item ${whoClass(item.who)}" data-id="${escapeHtml(item.id)}">
           <span class="cal-item-time">${escapeHtml(eventTimeLabel(item))}</span>
           <span class="cal-item-body">
             <em>${escapeHtml(whoLabel(item.who))}</em>
@@ -548,11 +690,44 @@
     $("cal-times")?.classList.toggle("hidden", !!allDay);
   }
 
+  function selectedDows() {
+    return [...document.querySelectorAll("#cal-dows button.is-on")].map((btn) => btn.dataset.dow);
+  }
+
+  function paintDows(selected) {
+    const box = $("cal-dows");
+    if (!box) return;
+    const set = new Set(selected || []);
+    box.innerHTML = WEEKDAYS.map((d) => {
+      const on = set.has(d);
+      return `<button type="button" data-dow="${d}" class="${on ? "is-on" : ""}" aria-pressed="${on}">${d}</button>`;
+    }).join("");
+    box.querySelectorAll("button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        btn.classList.toggle("is-on");
+        btn.setAttribute("aria-pressed", btn.classList.contains("is-on"));
+      });
+    });
+  }
+
+  function toggleRepeat() {
+    const on = Boolean($("cal-repeat")?.checked);
+    $("cal-repeat-fields")?.classList.toggle("hidden", !on);
+    if (on && !selectedDows().length) {
+      const code = weekdayCode(parseIso($("cal-date")?.value || state.selected));
+      paintDows([code]);
+    }
+  }
+
   function fillForm(item) {
+    const isSeries = Boolean(item?.kind === "week" || item?.repeating);
     const isEdit = Boolean(item);
-    state.editingId = item?.id || null;
+    state.editingId = isSeries ? null : (item?.id || null);
+    state.editingRepeatId = isSeries ? (item?.repeatId || item?.ruleId || null) : null;
     state.deleteArmed = false;
-    $("cal-sheet-kicker").textContent = isEdit ? "правка события" : "новое событие";
+    $("cal-sheet-kicker").textContent = isEdit
+      ? (isSeries ? "правка серии" : "правка события")
+      : "новое событие";
     $("cal-sheet-title").textContent = isEdit ? "Что меняем" : "Что заносим";
     $("cal-title").value = item?.title || "";
     $("cal-date").value = item?.date || state.selected;
@@ -561,14 +736,21 @@
     $("cal-allday").checked = Boolean(item?.allDay);
     $("cal-place").value = item?.place || "";
     $("cal-note").value = item?.note || "";
-    const who = item?.who || lastWho();
+    $("cal-repeat").checked = isSeries;
+    $("cal-only-day").checked = false;
+    $("cal-only-wrap").hidden = !state.editingRepeatId;
+    const who = item
+      ? (item.who === "sasha" || item.who === "masha" ? item.who : "both")
+      : lastWho();
     document.querySelectorAll('input[name="cal-who"]').forEach((el) => {
       el.checked = el.value === who;
     });
+    paintDows(item?.weekdays || (isSeries ? [weekdayCode(parseIso(item?.date || state.selected))] : []));
     $("cal-error").textContent = "";
     $("cal-delete").hidden = !isEdit;
     $("cal-delete").textContent = "Удалить";
     toggleTimes();
+    toggleRepeat();
   }
 
   function sheetCard() {
@@ -633,6 +815,7 @@
     document.documentElement.classList.remove("cal-sheet-open");
     clearSheetPos();
     state.editingId = null;
+    state.editingRepeatId = null;
     state.deleteArmed = false;
   }
 
@@ -668,17 +851,20 @@
 
   function openWeeklySlot(id) {
     const item = weeklyEventsOn(state.selected).find((e) => e.id === id);
-    $("cal-form").hidden = true;
-    $("cal-cook-wrap").hidden = false;
-    $("cal-sheet-kicker").textContent = item?.who ? "повторяется каждую неделю" : "общее мероприятие";
-    $("cal-sheet-title").textContent = item?.title || "Событие";
-    const who = item?.who ? " · " + whoLabel(item.who) : "";
-    $("cal-cook-wrap").innerHTML = item
-      ? `<p class="cal-cook-meta">${escapeHtml(item.start)}${who}</p>
-         <p class="cal-cook-copy">${escapeHtml(item.note || "Это постоянное событие семейного календаря. Оно видно на всех устройствах.")}</p>`
-      : `<p class="cal-cook-copy">Слот уже не найден.</p>`;
-    openSheet();
-    $("cal-cook-close")?.addEventListener("click", closeSheet);
+    const rule = weeklyRules().find((r) => r.id === item?.ruleId);
+    if (!item || !rule) return;
+    openForm({
+      ...rule,
+      date: state.selected,
+      start: item.start,
+      end: item.end,
+      allDay: item.allDay,
+      who: rule.who || "",
+      repeating: true,
+      repeatId: rule.id,
+      ruleId: rule.id,
+      kind: "week",
+    });
   }
 
   function openNoteSlot(id) {
@@ -702,7 +888,23 @@
 
   function readWho() {
     const el = document.querySelector('input[name="cal-who"]:checked');
-    return el?.value === "sasha" ? "sasha" : "masha";
+    if (el?.value === "sasha") return "sasha";
+    if (el?.value === "masha") return "masha";
+    return "";
+  }
+
+  function saveRepeatRule(payload) {
+    const cloudApi = window.SashaCloud;
+    if (cloudApi && typeof cloudApi.upsertCalendarRepeat === "function") {
+      cloudApi.upsertCalendarRepeat(payload);
+    }
+  }
+
+  function saveOneOff(event) {
+    const cloudApi = window.SashaCloud;
+    if (cloudApi && typeof cloudApi.upsertCalendarEvent === "function") {
+      cloudApi.upsertCalendarEvent(event);
+    }
   }
 
   function saveEvent(e) {
@@ -713,6 +915,8 @@
     const start = $("cal-start").value;
     const end = $("cal-end").value;
     const who = readWho();
+    const repeating = Boolean($("cal-repeat")?.checked);
+    const onlyDay = Boolean($("cal-only-day")?.checked);
     const err = $("cal-error");
     if (!title) {
       err.textContent = "Название — единственное обязательное «что».";
@@ -732,8 +936,59 @@
       return;
     }
     saveWho(who);
+    state.selected = date;
+    const cloudApi = window.SashaCloud;
+    const weekdays = selectedDows();
+    const place = $("cal-place").value.trim();
+    const note = $("cal-note").value.trim();
+
+    if (repeating && !onlyDay) {
+      if (!weekdays.length) {
+        err.textContent = "Выберите хотя бы один день недели.";
+        return;
+      }
+      const id = state.editingRepeatId || uid();
+      const prev = weeklyRules().find((r) => String(r.id) === String(id));
+      saveRepeatRule({
+        id,
+        title,
+        who,
+        allDay,
+        start: allDay ? "" : start,
+        end: allDay ? "" : end,
+        place,
+        note,
+        weekdays,
+        exceptions: prev?.exceptions || [],
+        deleted: false,
+        at: prev?.at || Date.now(),
+      });
+      if (state.editingId && cloudApi && typeof cloudApi.deleteCalendarEvent === "function") {
+        cloudApi.deleteCalendarEvent(state.editingId);
+      }
+      closeSheet();
+      render();
+      return;
+    }
+
+    if (state.editingRepeatId && (!repeating || onlyDay)) {
+      const prev = weeklyRules().find((r) => String(r.id) === String(state.editingRepeatId));
+      if (prev) {
+        if (!repeating) {
+          if (cloudApi && typeof cloudApi.deleteCalendarRepeat === "function") {
+            cloudApi.deleteCalendarRepeat(state.editingRepeatId);
+          }
+        } else {
+          saveRepeatRule({
+            ...prev,
+            exceptions: [...new Set([...(prev.exceptions || []), date])],
+          });
+        }
+      }
+    }
+
     const existing = userEvents().find((item) => String(item.id) === String(state.editingId));
-    const event = {
+    saveOneOff({
       id: existing?.id || uid(),
       title,
       who,
@@ -741,30 +996,41 @@
       allDay,
       start: allDay ? "" : start,
       end: allDay ? "" : end,
-      place: $("cal-place").value.trim(),
-      note: $("cal-note").value.trim(),
+      place,
+      note,
+      repeatId: onlyDay ? state.editingRepeatId : "",
       at: existing?.at || Date.now(),
       updatedAt: Date.now(),
       deleted: false,
-    };
-    state.selected = date;
-    const cloudApi = window.SashaCloud;
-    if (cloudApi && typeof cloudApi.upsertCalendarEvent === "function") {
-      cloudApi.upsertCalendarEvent(event);
-    }
+    });
     closeSheet();
     render();
   }
 
   function deleteEvent() {
-    if (!state.editingId) return;
+    if (!state.editingId && !state.editingRepeatId) return;
     if (!state.deleteArmed) {
       state.deleteArmed = true;
-      $("cal-delete").textContent = "Точно удалить?";
+      $("cal-delete").textContent = state.editingRepeatId && !$("cal-only-day")?.checked
+        ? "Удалить серию?"
+        : "Точно удалить?";
       return;
     }
     const cloudApi = window.SashaCloud;
-    if (cloudApi && typeof cloudApi.deleteCalendarEvent === "function") {
+    const onlyDay = Boolean($("cal-only-day")?.checked);
+    if (state.editingRepeatId && onlyDay) {
+      const prev = weeklyRules().find((r) => String(r.id) === String(state.editingRepeatId));
+      if (prev) {
+        saveRepeatRule({
+          ...prev,
+          exceptions: [...new Set([...(prev.exceptions || []), $("cal-date")?.value || state.selected])],
+        });
+      }
+    } else if (state.editingRepeatId) {
+      if (cloudApi && typeof cloudApi.deleteCalendarRepeat === "function") {
+        cloudApi.deleteCalendarRepeat(state.editingRepeatId);
+      }
+    } else if (state.editingId && cloudApi && typeof cloudApi.deleteCalendarEvent === "function") {
       cloudApi.deleteCalendarEvent(state.editingId);
     }
     closeSheet();
@@ -787,6 +1053,7 @@
       render();
     });
     $("cal-allday")?.addEventListener("change", toggleTimes);
+    $("cal-repeat")?.addEventListener("change", toggleRepeat);
     $("cal-form")?.addEventListener("submit", saveEvent);
     $("cal-cancel")?.addEventListener("click", closeSheet);
     $("cal-sheet-close")?.addEventListener("click", closeSheet);

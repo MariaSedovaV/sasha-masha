@@ -805,8 +805,10 @@ body.on-calendar .stage {
 }
 .cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .cal-list {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   flex: 1;
   min-height: 0;
   overflow: auto;
@@ -815,16 +817,18 @@ body.on-calendar .stage {
 }
 .cal-item {
   display: grid;
-  grid-template-columns: 56px 1fr;
-  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 10px;
   align-items: start;
-  width: 100%;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: min(280px, 100%);
   text-align: left;
   border: 1px solid var(--line);
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   color: inherit;
-  border-radius: 14px;
-  padding: 8px 10px 8px 8px;
+  border-radius: 16px;
+  padding: 8px 12px 8px 10px;
   cursor: pointer;
 }
 .cal-item:hover { border-color: color-mix(in srgb, var(--gold) 45%, var(--line)); }
@@ -859,8 +863,9 @@ body.on-calendar .stage {
   font-weight: 700;
 }
 .cal-item-body strong {
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 .cal-item-body small {
   color: var(--muted);
@@ -960,7 +965,7 @@ body.on-calendar .stage {
   padding: 0;
   margin: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
 .who-toggle legend {
@@ -986,6 +991,10 @@ body.on-calendar .stage {
   padding: 11px 12px;
   font: 700 14px Montserrat, sans-serif;
 }
+.who-chip.shared input:checked + span {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 22%, var(--bg));
+}
 .who-chip.masha input:checked + span {
   border-color: var(--rose);
   background: color-mix(in srgb, var(--rose) 22%, var(--bg));
@@ -995,6 +1004,32 @@ body.on-calendar .stage {
   border-color: var(--sky);
   background: color-mix(in srgb, var(--sky) 22%, var(--bg));
 }
+.cal-dows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cal-dows button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  color: var(--muted);
+  border-radius: 999px;
+  cursor: pointer;
+  font: 700 11px Montserrat, sans-serif;
+  letter-spacing: 0.04em;
+}
+.cal-dows button.is-on {
+  border-color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 22%, var(--bg));
+  color: var(--ink);
+}
+.cal-repeat-fields {
+  display: grid;
+  gap: 10px;
+}
+.cal-repeat-fields.hidden { display: none !important; }
 .cal-when {
   display: grid;
   grid-template-columns: 1fr 1fr;

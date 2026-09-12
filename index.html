@@ -21,7 +21,7 @@
       document.documentElement.dataset.locked = "1";
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=20" />
+  <link rel="stylesheet" href="styles.css?v=21" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -226,7 +226,11 @@
           <input id="cal-title" name="title" maxlength="120" required placeholder="Ужин у родителей, театр, встреча…" autocomplete="off" />
         </label>
         <fieldset class="who-toggle">
-          <legend>Кто заносит</legend>
+          <legend>Чьё это</legend>
+          <label class="who-chip shared">
+            <input type="radio" name="cal-who" value="both" />
+            <span>Общее</span>
+          </label>
           <label class="who-chip masha">
             <input type="radio" name="cal-who" value="masha" />
             <span>Маша</span>
@@ -236,6 +240,17 @@
             <span>Саша</span>
           </label>
         </fieldset>
+        <label class="allday">
+          <input id="cal-repeat" type="checkbox" />
+          <span>Каждую неделю</span>
+        </label>
+        <div class="cal-repeat-fields hidden" id="cal-repeat-fields">
+          <div class="cal-dows" id="cal-dows" aria-label="Дни недели"></div>
+          <label class="allday" id="cal-only-wrap" hidden>
+            <input id="cal-only-day" type="checkbox" />
+            <span>Только этот день</span>
+          </label>
+        </div>
         <div class="cal-when">
           <label class="field">
             <span>Дата</span>
@@ -302,9 +317,9 @@
   </section>
 
   <script src="auth.js?v=1"></script>
-  <script src="sync.js?v=11"></script>
+  <script src="sync.js?v=12"></script>
   <script src="cooking-index.js?v=1"></script>
-  <script src="calendar.js?v=8"></script>
+  <script src="calendar.js?v=9"></script>
   <script src="app.js?v=10"></script>
   <script src="assistant.js?v=12"></script>
 </body>
