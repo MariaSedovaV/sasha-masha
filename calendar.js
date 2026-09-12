@@ -357,7 +357,8 @@
           date: iso,
           start: "",
           end: "",
-          allDay: true,
+          allDay: false,
+          reminder: true,
           title: task.text || "Дело",
           who,
           done: !!task.done,
@@ -506,9 +507,10 @@
     const users = userEventsOn(iso);
     const notes = noteEventsOn(iso);
     return {
+      reminder: notes.length > 0,
       shared: mealEventsOn(iso).length > 0 || weekly.some((e) => !e.who),
-      masha: users.some((e) => e.who === "masha") || cookEventsOn(iso).length > 0 || notes.some((e) => e.who === "masha"),
-      sasha: users.some((e) => e.who === "sasha") || weekly.some((e) => e.who === "sasha") || notes.some((e) => e.who === "sasha"),
+      masha: users.some((e) => e.who === "masha") || cookEventsOn(iso).length > 0,
+      sasha: users.some((e) => e.who === "sasha") || weekly.some((e) => e.who === "sasha"),
     };
   }
 
@@ -567,8 +569,14 @@
         marks.masha ? '<i class="dot masha" title="Маша"></i>' : "",
         marks.sasha ? '<i class="dot sasha" title="Саша"></i>' : "",
       ].join("");
+      const bell = marks.reminder
+        ? `<i class="cal-bell" title="Напоминание">${bellSvg()}</i>`
+        : "";
       return `<button type="button" class="${cls}" data-date="${iso}" aria-pressed="${iso === state.selected}">
-        <span class="cal-num">${d.getDate()}</span>
+        <span class="cal-num-row">
+          <span class="cal-num">${d.getDate()}</span>
+          ${bell}
+        </span>
         <span class="cal-dots">${dots}</span>
       </button>`;
     }).join("");
@@ -579,6 +587,10 @@
         render();
       });
     });
+  }
+
+  function bellSvg() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3.2a6.2 6.2 0 0 0-6.2 6.2v3.15l-1.55 2.4A1.15 1.15 0 0 0 5.2 16.8h13.6a1.15 1.15 0 0 0 .95-1.85l-1.55-2.4V9.4A6.2 6.2 0 0 0 12 3.2Zm0 17.1a2.35 2.35 0 0 0 2.3-1.85h-4.6A2.35 2.35 0 0 0 12 20.3Z"/></svg>';
   }
 
   function eventTimeLabel(item) {
@@ -595,7 +607,8 @@
     const weekly = weeklyEventsOn(state.selected);
     const users = userEventsOn(state.selected);
     const notes = noteEventsOn(state.selected);
-    const rows = [...cook, ...meals, ...weekly, ...notes, ...users].sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
+    const timed = [...cook, ...meals, ...weekly, ...users].sort((a, b) => timeKey(a).localeCompare(timeKey(b)));
+    const rows = [...notes, ...timed];
     const listHtml = rows.length
       ? rows.map((item) => {
         if (item.kind === "cook") {
@@ -629,9 +642,9 @@
         if (item.kind === "note") {
           const cls = item.who === "sasha" ? "sasha" : "masha";
           return `<button type="button" class="cal-item ${cls} note${item.done ? " is-done" : ""}" data-note="${escapeHtml(item.id)}">
-            <span class="cal-item-time">весь день</span>
+            <span class="cal-item-time">Напоминание</span>
             <span class="cal-item-body">
-              <em>заметка · ${escapeHtml(whoLabel(item.who))}</em>
+              <em>${escapeHtml(whoLabel(item.who))}</em>
               <strong>${escapeHtml(item.title)}</strong>
               ${item.preview ? `<small>${escapeHtml(item.preview)}</small>` : ""}
             </span>
@@ -883,7 +896,7 @@
     $("cal-sheet-title").textContent = item?.title || "Заметка";
     const details = noteDetailsHtml(item?.details);
     $("cal-cook-wrap").innerHTML = item
-      ? `<p class="cal-cook-meta">весь день · ${escapeHtml(whoLabel(item.who))}${item.done ? " · сделано" : ""}</p>
+      ? `<p class="cal-cook-meta">напоминание · ${escapeHtml(whoLabel(item.who))}${item.done ? " · сделано" : ""}</p>
          ${details}
          <p class="cal-cook-copy">Срок и пояснение живут в заметках. Поменяете там — календарь обновится на всех устройствах.</p>
          <div class="cal-form-actions">
