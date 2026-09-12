@@ -1098,6 +1098,7 @@ body.on-calendar .stage {
   font-size: 14px;
   line-height: 1.5;
 }
+.cal-note-gap { min-height: 0.7em; }
 .cal-note-li {
   margin: 0;
   display: grid;
