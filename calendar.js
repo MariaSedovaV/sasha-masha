@@ -154,7 +154,7 @@
   }
 
   function planMatchesPinned(plan, pinned) {
-    return Boolean(plan) && (!pinned || String(plan.rationId) === String(pinned));
+    return Boolean(plan) && Boolean(pinned) && String(plan.rationId) === String(pinned);
   }
 
   function scheduleLookup(rationId, dayId, mealId) {
@@ -302,9 +302,13 @@
   function nutritionPlan() {
     const snap = cloud();
     const pinned = snap.pinned?.id;
+    // Без закреплённого рациона питание в календаре не показываем.
+    if (!pinned) {
+      return { rationId: null, title: "", items: [], meals: [] };
+    }
     const plan = snap.cookingPlan;
     // Всегда собираем из индекса + актуальных schedules — календарь не отстаёт от питания.
-    if (pinned && Array.isArray(window.COOKING_INDEX) && window.COOKING_INDEX.length) {
+    if (Array.isArray(window.COOKING_INDEX) && window.COOKING_INDEX.length) {
       const built = buildPlanFromIndex(pinned, plan);
       return {
         rationId: built.rationId,
@@ -321,10 +325,10 @@
       ? plan.meals.map(normalizeMealItem)
       : [];
     if (!cloudCook.length && !cloudMeals.length) {
-      return { rationId: pinned || null, title: plan?.title || "", items: [], meals: [] };
+      return { rationId: pinned, title: plan?.title || "", items: [], meals: [] };
     }
     return {
-      rationId: plan?.rationId || pinned || null,
+      rationId: plan?.rationId || pinned,
       title: plan?.title || "",
       items: cloudCook,
       meals: cloudMeals,
