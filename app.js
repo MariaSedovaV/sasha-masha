@@ -84,6 +84,7 @@ function showView(name) {
   document.body.classList.toggle("on-calendar", name === "calendar");
   const hash = name === "goals" ? "#цели" : name === "calendar" ? "#календарь" : location.pathname;
   history.replaceState(null, "", hash);
+  syncBrandPage();
   if (name !== "hub") window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
   if (name === "calendar") window.sashaCalendarReload?.();
 }
@@ -94,8 +95,6 @@ $("theme-toggle").addEventListener("click", () => {
 });
 $("open-goals").addEventListener("click", () => showView("goals"));
 $("open-calendar").addEventListener("click", () => showView("calendar"));
-$("back-hub").addEventListener("click", () => showView("hub"));
-$("back-hub-cal").addEventListener("click", () => showView("hub"));
 $("home-link")?.addEventListener("click", (e) => {
   e.preventDefault();
   showView("hub");
@@ -115,7 +114,10 @@ setInterval(renderClock, 1000);
 function syncBrandPage() {
   const page = document.querySelector(".brand-page");
   if (!page) return;
-  page.textContent = document.documentElement.dataset.locked === "1" ? "Вход" : "Экосистема";
+  if (document.documentElement.dataset.locked === "1") page.textContent = "Вход";
+  else if (document.body.classList.contains("on-goals")) page.textContent = "Цели";
+  else if (document.body.classList.contains("on-calendar")) page.textContent = "Календарь";
+  else page.textContent = "Экосистема";
 }
 
 function refreshSessionChrome() {

@@ -214,7 +214,7 @@ body.on-calendar .photo-layer img { opacity: 0.2; }
 .theme-toggle:hover { border-color: var(--gold); }
 
 .home-link {
-  display: grid;
+  display: none;
   place-items: center;
   width: 36px;
   height: 36px;
@@ -224,6 +224,9 @@ body.on-calendar .photo-layer img { opacity: 0.2; }
   background: var(--bg-2);
   text-decoration: none;
 }
+body.on-goals .home-link,
+body.on-calendar .home-link { display: grid; }
+html[data-locked="1"] .home-link { display: none !important; }
 .home-link:hover { border-color: var(--gold); color: var(--gold); }
 .home-link svg {
   width: 18px;
@@ -624,7 +627,6 @@ body.on-calendar .stage {
   flex-direction: column;
   padding-bottom: 0;
 }
-.calendar .back-hub { padding-bottom: 4px; }
 .calendar .eyebrow { margin-bottom: 2px; }
 .calendar .goals-title { font-size: clamp(26px, 3.4vw, 36px); }
 .calendar .goals-lead {
@@ -1276,6 +1278,18 @@ html.cal-sheet-open, html.cal-sheet-open body { overflow: hidden; }
   .brand { grid-area: brand; min-width: 0; }
   .chrome-actions { display: contents; }
   .chrome-tools { grid-area: theme; justify-self: end; }
+  .home-link {
+    grid-area: home;
+    width: 40px;
+    height: 40px;
+  }
+  body.on-goals .site-chrome,
+  body.on-calendar .site-chrome {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "brand theme home"
+      "clock clock clock";
+  }
   .together-clock {
     grid-area: clock;
     align-items: flex-start;

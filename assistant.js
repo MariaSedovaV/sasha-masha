@@ -354,7 +354,7 @@ html.assist-open,html.assist-open body{overflow:hidden}
         else location.href = LINKS.goals;
       }
       if (res.home) {
-        const btn = document.getElementById("back-hub");
+        const btn = document.getElementById("home-link");
         if (btn) btn.click();
         else if (!already(LINKS.home)) location.href = LINKS.home;
       }

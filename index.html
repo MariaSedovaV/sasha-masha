@@ -21,7 +21,7 @@
       document.documentElement.dataset.locked = "1";
     }
   </script>
-  <link rel="stylesheet" href="styles.css?v=25" />
+  <link rel="stylesheet" href="styles.css?v=26" />
   <!-- goals-original-timeline-v6 -->
 </head>
 <body>
@@ -46,6 +46,9 @@
       <div class="together-clock" id="together-clock" aria-live="polite">
         <div class="clock-units" id="clock-units"></div>
       </div>
+      <a class="home-link" id="home-link" href="https://mariasedovav.github.io/sasha-masha/" aria-label="На главную">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 11.2 12 4.8l7.5 6.4V20a1 1 0 0 1-1 1h-5.2v-6.2H10.7V21H5.5a1 1 0 0 1-1-1v-8.8Z"/></svg>
+      </a>
     </div>
   </header>
 
@@ -134,7 +137,6 @@
     </section>
 
     <section class="goals hidden" id="goals-view" hidden>
-      <button type="button" class="back-hub" id="back-hub">← к экосистеме</button>
       <p class="eyebrow">карта желаний</p>
       <h2 class="goals-title">Цели</h2>
       <p class="goals-lead">Не чеклист, а нить, по которой мы идём. Пусть случится вовремя — или раньше.</p>
@@ -188,7 +190,6 @@
     <section class="calendar hidden" id="calendar-view" hidden>
       <div class="cal-head">
         <div class="cal-head-copy">
-          <button type="button" class="back-hub" id="back-hub-cal">← к экосистеме</button>
           <p class="eyebrow">семейный ритм</p>
           <h2 class="goals-title">Календарь</h2>
           <p class="goals-lead" id="cal-lead">Приготовление и приёмы пищи из рациона недели и ваши события — общие на всех устройствах.</p>
@@ -320,7 +321,7 @@
   <script src="sync.js?v=12"></script>
   <script src="cooking-index.js?v=1"></script>
   <script src="calendar.js?v=14"></script>
-  <script src="app.js?v=10"></script>
-  <script src="assistant.js?v=12"></script>
+  <script src="app.js?v=11"></script>
+  <script src="assistant.js?v=13"></script>
 </body>
 </html>
