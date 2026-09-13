@@ -1,6 +1,4 @@
 (function (global) {
-  const KEY_STORE = "sasha-butler-gemini";
-  const MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
   const HOME = "https://mariasedovav.github.io/sasha-masha/";
   const LINKS = {
     home: HOME,
@@ -12,129 +10,105 @@
     calendar: HOME + "#календарь",
   };
   const CATS = [
-    "Ипотека платеж", "Дедушка долг", "Ремонт квартиры", "Квартира Тайланд",
-    "Свадебное путешествие", "Саша учеба", "Парковка", "Отпуска", "Страховка",
-    "Налоги", "Ребенок", "Супермаркеты", "Такси", "Рестораны", "Одежда и обувь",
-    "Квартплата", "Мобильная связь", "Товары для дома", "Косметика", "Развлечения",
-    "Бьюти процедуры", "Парковки и штрафы", "Бензин", "Переводы", "Прочее",
-    "Расходы на семьи", "Подарки друг другу", "Крупные покупки", "Абонемент в спорт-зал",
+    ["Ипотека платеж", ["ипотека"]],
+    ["Дедушка долг", ["дедушка", "долг дедушки"]],
+    ["Ремонт квартиры", ["ремонт квартиры", "за ремонт"]],
+    ["Квартира Тайланд", ["тайланд", "таиланд"]],
+    ["Свадебное путешествие", ["свадебн", "медовый"]],
+    ["Саша учеба", ["учеба", "учёба"]],
+    ["Парковка", ["абонемент парков", "парковка маши"]],
+    ["Отпуска", ["отпуск"]],
+    ["Страховка", ["страхов"]],
+    ["Налоги", ["налог"]],
+    ["Ребенок", ["ребенок", "ребёнок"]],
+    ["Супермаркеты", ["супермаркет", "продукт", "пятероч", "магнит", "перекрест", "вкусвилл", "продукты", "еда"]],
+    ["Такси", ["такси", "яндекс го", "uber", "каршеринг"]],
+    ["Рестораны", ["ресторан", "кафе", "кофе", "обед", "ужин вне"]],
+    ["Одежда и обувь", ["одежд", "обув", "платье", "кроссов"]],
+    ["Квартплата", ["квартплат", "жкх", "коммунал"]],
+    ["Мобильная связь", ["связь", "мтс", "мегафон", "билайн", "теле2", "мобильн"]],
+    ["Товары для дома", ["ikeа", "икеа", "хозтовар"]],
+    ["Косметика", ["косметик"]],
+    ["Развлечения", ["развлеч", "кино", "театр", "концерт"]],
+    ["Бьюти процедуры", ["бьюти", "маникюр", "стрижк", "салон"]],
+    ["Парковки и штрафы", ["штраф", "парковк"]],
+    ["Бензин", ["бензин", "заправк"]],
+    ["Переводы", ["перевод"]],
+    ["Прочее", ["прочее", "разное"]],
+    ["Расходы на семьи", ["семьи", "родител"]],
+    ["Подарки друг другу", ["подарок", "подарки"]],
+    ["Крупные покупки", ["крупн", "техник"]],
+    ["Абонемент в спорт-зал", ["спортзал", "фитнес", "абонемент в зал"]],
   ];
-  const history = [];
-
-  const TOOLS = [{
-    functionDeclarations: [
-      {
-        name: "open_section",
-        description: "Открыть раздел семейного пространства.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            section: {
-              type: "STRING",
-              enum: ["home", "budget", "pitanie", "zametki", "remont", "calendar", "goals"],
-            },
-          },
-          required: ["section"],
-        },
-      },
-      {
-        name: "add_task",
-        description: "Добавить дело Саше или Маше в заметки.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            who: { type: "STRING", enum: ["sasha", "masha"] },
-            text: { type: "STRING" },
-          },
-          required: ["who", "text"],
-        },
-      },
-      {
-        name: "add_expense",
-        description: "Записать трату в факт бюджета за текущий месяц.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            amount: { type: "NUMBER" },
-            category: { type: "STRING", enum: CATS },
-          },
-          required: ["amount", "category"],
-        },
-      },
-      {
-        name: "add_event",
-        description: "Поставить событие в семейный календарь.",
-        parameters: {
-          type: "OBJECT",
-          properties: {
-            title: { type: "STRING" },
-            date: { type: "STRING", description: "YYYY-MM-DD" },
-            start: { type: "STRING", description: "HH:MM, пусто если весь день" },
-            end: { type: "STRING" },
-            allDay: { type: "BOOLEAN" },
-            who: { type: "STRING", enum: ["both", "sasha", "masha"] },
-            place: { type: "STRING" },
-            note: { type: "STRING" },
-          },
-          required: ["title", "date"],
-        },
-      },
-      {
-        name: "set_theme",
-        description: "Переключить светлую или тёмную тему.",
-        parameters: {
-          type: "OBJECT",
-          properties: { theme: { type: "STRING", enum: ["light", "dark"] } },
-          required: ["theme"],
-        },
-      },
-      {
-        name: "web_search",
-        description: "Открыть поиск Яндекса, если нужен интернет.",
-        parameters: {
-          type: "OBJECT",
-          properties: { query: { type: "STRING" } },
-          required: ["query"],
-        },
-      },
-    ],
-  }];
+  const CAT_NAMES = CATS.map((row) => row[0]);
+  const MONTHS = [
+    ["январ", 1], ["феврал", 2], ["март", 3], ["апрел", 4], ["ма", 5],
+    ["июн", 6], ["июл", 7], ["август", 8], ["сентябр", 9], ["сент", 9],
+    ["октябр", 10], ["ноябр", 11], ["декабр", 12],
+  ];
+  const WEEKDAYS = [
+    ["воскресень", 0], ["понедельни", 1], ["вторни", 2], ["сред", 3],
+    ["четверг", 4], ["пятниц", 5], ["суббот", 6],
+  ];
+  let pending = null;
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
+  function norm(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      .replace(/[^a-zа-я0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function wrap(n) {
+    return " " + n + " ";
+  }
+  function hasWord(n, word) {
+    return wrap(n).includes(" " + word + " ");
+  }
+  function hasAny(n, words) {
+    return words.some((w) => hasWord(n, w));
+  }
+  function hasStem(n, stem) {
+    return wrap(n).includes(" " + stem);
+  }
+  function isTaskHint(n) {
+    return ["дел", "задач", "напомн", "запиш", "добав", "купи", "позвон", "запис", "сделай", "сделать", "забери", "отправ", "напиши", "проверь", "оплат", "заказать"].some((s) => hasStem(n, s))
+      || hasAny(n, ["надо", "нужно"]);
+  }
   function moscowToday() {
     return new Date().toLocaleString("sv-SE", { timeZone: "Europe/Moscow" }).slice(0, 10);
+  }
+  function addDays(ymd, n) {
+    const [y, m, d] = ymd.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d + n));
+    return dt.toISOString().slice(0, 10);
+  }
+  function weekdayOf(ymd) {
+    const [y, m, d] = ymd.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   }
   function monthName(n) {
     return ["январе","феврале","марте","апреле","мае","июне","июле","августе","сентябре","октябре","ноябре","декабре"][n - 1];
   }
+  function prettyDate(ymd) {
+    if (!ymd) return "";
+    const [y, m, d] = ymd.split("-");
+    const names = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+    return Number(d) + " " + names[Number(m) - 1];
+  }
   function snap() {
     try { return global.SashaCloud?.snapshot?.() || {}; } catch { return {}; }
   }
-  function hasKey() {
-    try { return Boolean(localStorage.getItem(KEY_STORE)); } catch { return false; }
-  }
-  function getKey() {
+  function sessionWho() {
     try {
-      return String(localStorage.getItem(KEY_STORE) || "")
-        .trim()
-        .replace(/^['"]+|['"]+$/g, "")
-        .replace(/\s+/g, "");
-    } catch {
-      return "";
-    }
-  }
-  function saveKey(value) {
-    const key = String(value || "")
-      .trim()
-      .replace(/^['"]+|['"]+$/g, "")
-      .replace(/\s+/g, "");
-    try {
-      if (key) localStorage.setItem(KEY_STORE, key);
-      else localStorage.removeItem(KEY_STORE);
+      const id = global.SashaAuth?.session?.()?.id;
+      if (id === "sasha" || id === "masha") return id;
     } catch {}
-    return Boolean(key);
+    return "";
   }
 
   function collectContext() {
@@ -142,38 +116,49 @@
     const notes = cloud.notes || {};
     const open = (list) => (Array.isArray(list) ? list : [])
       .filter((t) => t && !t.deleted && !t.archived && !t.done)
-      .slice(-8)
+      .slice(-10)
       .map((t) => t.text)
       .filter(Boolean);
     const today = moscowToday();
     const events = (cloud.calendar || [])
       .filter((e) => e && !e.deleted && String(e.date || "") >= today)
-      .slice(0, 16)
+      .slice(0, 20)
       .map((e) => ({
         date: e.date,
         title: e.title,
         start: e.start || "",
-        who: e.who || "both",
+        who: e.who || "",
       }));
     const plan = cloud.cookingPlan || {};
     return {
       today,
-      page: location.pathname + location.hash,
-      who: global.SashaAuth?.session?.()?.id || "",
+      page: (global.location?.pathname || "") + (global.location?.hash || ""),
+      who: sessionWho(),
       ration: plan.title || "",
       tasks: { sasha: open(notes.sasha), masha: open(notes.masha) },
       events,
     };
   }
 
-  function addNote(person, text) {
+  function addNote(person, text, due) {
     const cloud = snap();
     const notes = {
       sasha: Array.isArray(cloud.notes?.sasha) ? cloud.notes.sasha.slice() : [],
       masha: Array.isArray(cloud.notes?.masha) ? cloud.notes.masha.slice() : [],
     };
     notes[person] = notes[person] || [];
-    notes[person].push({ id: uid(), text, done: false, at: Date.now(), updatedAt: Date.now() });
+    notes[person].push({
+      id: uid(),
+      text,
+      done: false,
+      at: Date.now(),
+      updatedAt: Date.now(),
+      author: sessionWho() || person,
+      due: due || "",
+      details: [],
+      archived: false,
+      doneAt: 0,
+    });
     try { localStorage.setItem("sasha-masha-notes", JSON.stringify(notes)); } catch {}
     if (global.SashaCloud?.setNotes) global.SashaCloud.setNotes(notes);
   }
@@ -218,272 +203,362 @@
     return true;
   }
 
-  function runTool(name, args) {
-    const a = args || {};
-    if (name === "open_section") {
-      const map = {
-        home: { say: "Возвращаю на главную.", home: true },
-        budget: { say: "Открываю мониторинг бюджета.", open: LINKS.budget },
-        pitanie: { say: "Открываю питание.", open: LINKS.pitanie },
-        zametki: { say: "Открываю заметки.", open: LINKS.zametki },
-        remont: { say: "Открываю ремонт.", open: LINKS.remont },
-        calendar: { say: "Открываю календарь.", calendar: true },
-        goals: { say: "Открываю цели.", goals: true },
-      };
-      return { summary: map[a.section]?.say || "Неизвестный раздел.", extra: map[a.section] || {} };
+  function parseAmount(text) {
+    const raw = norm(text)
+      .replace(/через\s+\d+\s+(день|дня|дней)/g, " ")
+      .replace(/\b\d{1,2}\s+[а-я]+/g, " ")
+      .replace(/\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b/g, " ")
+      .replace(/\b(?:в|на|к)\s+\d{1,2}(?:[:.]\d{2})?\b/g, " ")
+      .replace(/\b\d{1,2}[:.]\d{2}\b/g, " ");
+    let m = raw.match(/(\d[\d\s]{0,12}\d|\d+)\s*(?:тыс|к\b)/);
+    if (m) return Number(String(m[1]).replace(/\s/g, "")) * 1000;
+    m = raw.match(/(\d[\d\s]{0,12}\d|\d+)\s*(?:руб|₽|рублей|рубля|рублях)\b/);
+    if (m) return Number(String(m[1]).replace(/\s/g, ""));
+    m = raw.match(/\b(\d[\d\s]{2,12}\d|\d{3,})\b/);
+    if (m) return Number(String(m[1]).replace(/\s/g, ""));
+    if (/(потрат|трат|запиш|списал|оплатил)/.test(raw)) {
+      m = raw.match(/\b(\d+)\b/);
+      if (m) return Number(m[1]);
     }
-    if (name === "add_task") {
-      const who = a.who === "sasha" ? "sasha" : "masha";
-      const text = String(a.text || "").trim();
-      if (text.length < 2) return { summary: "Слишком короткое дело.", extra: {} };
-      addNote(who, text);
-      const label = who === "sasha" ? "Саше" : "Маше";
-      return {
-        summary: `Добавила дело ${label}: «${text}».`,
-        extra: { open: LINKS.zametki },
-      };
-    }
-    if (name === "add_expense") {
-      const amount = Number(a.amount);
-      const category = CATS.includes(a.category) ? a.category : "Прочее";
-      if (!amount || amount <= 0) return { summary: "Нужна сумма больше нуля.", extra: {} };
-      const month = addExpense(category, amount);
-      return {
-        summary: `Записала ${amount.toLocaleString("ru-RU")} ₽ в «${category}» за ${monthName(month)}.`,
-        extra: { open: LINKS.budget },
-      };
-    }
-    if (name === "add_event") {
-      const title = String(a.title || "").trim();
-      if (!title || !a.date) return { summary: "Нужны название и дата.", extra: {} };
-      if (!addEvent(a)) {
-        return { summary: "Календарь сейчас недоступен. Откройте главную и повторите.", extra: { calendar: true } };
-      }
-      return {
-        summary: `Поставила «${title}» на ${a.date}${a.start ? " в " + a.start : ""}.`,
-        extra: { calendar: true },
-      };
-    }
-    if (name === "set_theme") {
-      const want = a.theme === "light" ? "light" : "dark";
-      const now = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-      return { summary: want === now ? "Эта тема уже включена." : "Переключаю тему.", extra: { theme: want !== now } };
-    }
-    if (name === "web_search") {
-      const q = String(a.query || "").trim();
-      return { summary: q ? `Открыла поиск: ${q}` : "Нужен запрос.", extra: q ? { search: q } : {} };
-    }
-    return { summary: "Неизвестный инструмент.", extra: {} };
+    return null;
   }
 
-  function systemPrompt(ctx) {
-    return [
-      "Ты Дворецкий семьи Саши и Маши. Говори по-русски, коротко, тепло, без канцелярита.",
-      "Если нужно действие в их пространстве — вызови инструмент. Не выдумывай, что уже записала, пока инструмент не выполнен.",
-      "Сегодня (Москва): " + ctx.today + ".",
-      "Сейчас открыто: " + ctx.page + (ctx.who ? ". Вошла: " + ctx.who : "") + ".",
-      ctx.ration ? "Закреплённый рацион: " + ctx.ration + "." : "Рацион недели не закреплён.",
-      "Открытые дела Саши: " + (ctx.tasks.sasha.join("; ") || "нет") + ".",
-      "Открытые дела Маши: " + (ctx.tasks.masha.join("; ") || "нет") + ".",
-      "Ближайшие события: " + (ctx.events.map((e) => e.date + " " + (e.start || "") + " " + e.title).join("; ") || "нет") + ".",
-      "Категории трат только из списка инструмента.",
-    ].join("\n");
-  }
-
-  function explainError(err) {
-    const raw = String(err?.message || err || "");
-    const low = raw.toLowerCase();
-    if (err?.name === "AbortError" || /abort|timeout/i.test(raw)) {
-      return "Google AI слишком долго отвечает. Нажмите «Отправить» ещё раз.";
-    }
-    if (/failed to fetch|networkerror|load failed/i.test(raw)) {
-      return "Не удалось связаться с Google AI. Проверьте интернет и что ключ не ограничен чужим сайтом.";
-    }
-    if (/api[_ ]key not valid|invalid.*key|api_key_invalid|403|401/i.test(low)) {
-      return "Ключ Google AI не принят. Создайте новый на aistudio.google.com/apikey и вставьте ещё раз кнопкой «ключ».";
-    }
-    if (/not found|404|not supported/i.test(low)) {
-      return "Эта модель Google AI сейчас недоступна для ключа. Создайте ключ в AI Studio ещё раз — без ограничения по сайту.";
-    }
-    return "Умный режим не ответил: " + raw.replace(/key=[^&\s]+/gi, "key=…").slice(0, 180);
-  }
-
-  async function gemini(contents, ctx, model, withThinkingOff) {
-    const key = getKey();
-    if (!key) throw new Error("no key");
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent";
-    const body = {
-      systemInstruction: { parts: [{ text: systemPrompt(ctx) }] },
-      contents,
-      tools: TOOLS,
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 2048,
-      },
-    };
-    if (withThinkingOff) body.generationConfig.thinkingConfig = { thinkingBudget: 0 };
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 25000);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": key,
-        },
-        body: JSON.stringify(body),
-        signal: ctrl.signal,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg = data?.error?.message || ("HTTP " + res.status);
-        const err = new Error(msg);
-        err.status = res.status;
-        throw err;
-      }
-      const cand = data?.candidates?.[0];
-      if (!cand) {
-        const block = data?.promptFeedback?.blockReason;
-        throw new Error(block ? "Ответ заблокирован фильтром: " + block : "Пустой ответ модели");
-      }
-      return cand.content || { parts: [] };
-    } finally {
-      clearTimeout(t);
-    }
-  }
-
-  async function geminiWithFallback(contents, ctx) {
-    let last = null;
-    for (const model of MODELS) {
-      for (const thinkingOff of [true, false]) {
-        try {
-          return await gemini(contents, ctx, model, thinkingOff);
-        } catch (err) {
-          last = err;
-          const msg = String(err?.message || "");
-          if (/api[_ ]key not valid|api_key_invalid|permission|403|401/i.test(msg)) throw err;
-          if (err?.name === "AbortError" || /abort|failed to fetch/i.test(msg)) throw err;
+  function matchCategory(text) {
+    const n = norm(text);
+    let best = null;
+    let bestLen = 0;
+    for (const [name, aliases] of CATS) {
+      for (const key of [norm(name), ...aliases]) {
+        if (key && n.includes(key) && key.length >= bestLen) {
+          best = name;
+          bestLen = key.length;
         }
       }
     }
-    throw last || new Error("no model");
+    return best;
   }
 
-  function partText(content) {
-    return (content?.parts || []).map((p) => p.text || "").join("").trim();
-  }
-  function partCalls(content) {
-    return (content?.parts || []).filter((p) => p.functionCall?.name).map((p) => p.functionCall);
+  function parsePerson(n) {
+    if (hasAny(n, ["маше", "маши", "маша"]) || n.includes("для маши")) return "masha";
+    if (hasAny(n, ["саше", "саши", "саша"]) || n.includes("для саши")) return "sasha";
+    if (hasAny(n, ["мне", "себе"])) return sessionWho() || null;
+    return null;
   }
 
-  async function ask(text) {
+  function parseEventWho(n) {
+    if (hasAny(n, ["маше", "маши", "маша"])) return "masha";
+    if (hasAny(n, ["саше", "саши", "саша"])) return "sasha";
+    return "";
+  }
+
+  function parseTime(n) {
+    let m = n.match(/(?:^|\s)(?:в|на|к)\s+(\d{1,2})(?:[:\.](\d{2}))?(?=\s|$)/);
+    if (!m) m = n.match(/(?:^|\s)(\d{1,2})[:\.](\d{2})(?=\s|$)/);
+    if (m) {
+      const h = Number(m[1]);
+      const min = Number(m[2] || 0);
+      if (h >= 0 && h <= 23 && min >= 0 && min <= 59) {
+        return String(h).padStart(2, "0") + ":" + String(min).padStart(2, "0");
+      }
+    }
+    if (hasStem(n, "вечер")) return "19:00";
+    if (hasStem(n, "утр")) return "09:00";
+    if (hasAny(n, ["днем", "днём"])) return "14:00";
+    return "";
+  }
+
+  function parseDate(n) {
+    const today = moscowToday();
+    if (hasWord(n, "сегодня")) return today;
+    if (hasWord(n, "послезавтра")) return addDays(today, 2);
+    if (hasWord(n, "завтра")) return addDays(today, 1);
+    const thru = n.match(/через\s+(\d+)\s+(день|дня|дней)/);
+    if (thru) return addDays(today, Number(thru[1]));
+    for (const [word, wd] of WEEKDAYS) {
+      if (n.includes(word)) {
+        const cur = weekdayOf(today);
+        const add = (wd - cur + 7) % 7;
+        return addDays(today, add);
+      }
+    }
+    let m = n.match(/\b(\d{1,2})\s+([а-я]+)/);
+    if (m) {
+      const day = Number(m[1]);
+      const mon = MONTHS.find((row) => m[2].startsWith(row[0]));
+      if (mon && day >= 1 && day <= 31) {
+        const year = Number(today.slice(0, 4));
+        let ymd = year + "-" + String(mon[1]).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+        if (ymd < today) ymd = (year + 1) + ymd.slice(4);
+        return ymd;
+      }
+    }
+    m = n.match(/\b(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?\b/);
+    if (m) {
+      const day = Number(m[1]);
+      const month = Number(m[2]);
+      let year = m[3] ? Number(m[3]) : Number(today.slice(0, 4));
+      if (year < 100) year += 2000;
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+        let ymd = year + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+        if (!m[3] && ymd < today) ymd = (year + 1) + ymd.slice(4);
+        return ymd;
+      }
+    }
+    return "";
+  }
+
+  function stripFiller(text) {
+    return String(text || "")
+      .replace(/^(пожалуйста|давай|можешь|слушай|короче|ну)\s+/i, "")
+      .replace(/^(добавь|запиши|напомни|поставь|открой|покажи|перейди|зайди)\s+(дело\s+)?/i, "")
+      .trim();
+  }
+
+  function taskText(text) {
+    return stripFiller(text)
+      .replace(/^(дело\s+)?(маше|маши|саше|саши|для маши|для саши|мне|себе)\s*[:\-–]?\s*/i, "")
+      .replace(/^(маше|саше|маша|саша)\s+/i, "")
+      .replace(/(^|\s)(сегодня|завтра|послезавтра)(?=\s|$)/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function eventTitle(text) {
+    return stripFiller(text)
+      .replace(/(^|\s)(сегодня|завтра|послезавтра|утром|днем|вечером|событие|встречу|встреча|встречи|напоминание)(?=\s|$)/gi, " ")
+      .replace(/(^|\s)(в|во|на|к)\s+(понедельник|вторник|среду|четверг|пятницу|субботу|воскресенье)(?=\s|$)/gi, " ")
+      .replace(/(^|\s)(понедельник|вторник|среду|четверг|пятницу|субботу|воскресенье)(?=\s|$)/gi, " ")
+      .replace(/(^|\s)в календарь(?=\s|$)/gi, " ")
+      .replace(/(^|\s)в календаре(?=\s|$)/gi, " ")
+      .replace(/\d{1,2}\s+(январ[а-я]*|феврал[а-я]*|март[а-я]*|апрел[а-я]*|ма[йяе]|июн[а-я]*|июл[а-я]*|август[а-я]*|сент[а-я]*|октябр[а-я]*|ноябр[а-я]*|декабр[а-я]*)/gi, " ")
+      .replace(/\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?/g, " ")
+      .replace(/(?:^|\s)(?:в|на|к)\s+\d{1,2}(?:[:.]\d{2})?(?=\s|$)/gi, " ")
+      .replace(/\d{1,2}[:.]\d{2}/g, " ")
+      .replace(/(^|\s)(саше|саши|саша|маше|маши|маша|нам|общее)(?=\s|$)/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function isQuestion(n) {
+    return /^(что|какие|какой|какая|когда|сколько|есть ли|подскажи|скажи|какие дела|а что)/.test(n)
+      || /(что завтра|что сегодня|на неделе|какие дела|что по еде|что по питанию|какой рацион)/.test(n);
+  }
+
+  function listTasks(who) {
     const ctx = collectContext();
-    const contents = history.slice(-6);
-    contents.push({ role: "user", parts: [{ text: String(text || "").trim() }] });
-    let extra = {};
-    let content = await geminiWithFallback(contents, ctx);
-    for (let i = 0; i < 3; i += 1) {
-      const calls = partCalls(content);
-      if (!calls.length) break;
-      contents.push({ role: "model", parts: content.parts });
-      const responses = [];
-      for (const call of calls) {
-        let args = call.args || call.arguments || {};
-        if (typeof args === "string") {
-          try { args = JSON.parse(args); } catch { args = {}; }
-        }
-        const result = runTool(call.name, args);
-        extra = { ...extra, ...(result.extra || {}) };
-        responses.push({
-          functionResponse: {
-            name: call.name,
-            response: { result: result.summary },
-          },
-        });
-      }
-      contents.push({ role: "user", parts: responses });
-      content = await geminiWithFallback(contents, ctx);
+    const items = who === "sasha" ? ctx.tasks.sasha : ctx.tasks.masha;
+    const label = who === "sasha" ? "Саши" : "Маши";
+    if (!items.length) return "Открытых дел у " + label + " сейчас нет.";
+    return "Дела " + label + ": " + items.join("; ") + ".";
+  }
+
+  function listEvents(from, to) {
+    const ctx = collectContext();
+    const items = ctx.events.filter((e) => e.date >= from && e.date <= to);
+    if (!items.length) {
+      if (from === to) return "На " + prettyDate(from) + " в календаре пока пусто.";
+      return "На эти дни в календаре пока пусто.";
     }
-    const say = partText(content) || extra.say || "Готово.";
-    history.push({ role: "user", parts: [{ text: String(text || "").trim() }] });
-    history.push({ role: "model", parts: [{ text: say }] });
-    if (history.length > 12) history.splice(0, history.length - 12);
-    return { say, ...extra };
+    return items.map((e) => prettyDate(e.date) + (e.start ? " в " + e.start : "") + " — " + e.title).join("; ") + ".";
   }
 
-  function injectCss() {
-    if (document.getElementById("butler-brain-css")) return;
-    const s = document.createElement("style");
-    s.id = "butler-brain-css";
-    s.textContent = `
-.assist-key{border:1px solid var(--line,rgba(239,232,220,.08));background:var(--bg-2,#12141b);color:inherit;border-radius:999px;padding:8px 12px;font:600 11px Montserrat,sans-serif;cursor:pointer}
-.assist-key.on{border-color:rgba(212,180,131,.55);color:var(--gold,#d4b483)}
-.assist-key-row{display:none;gap:8px;padding:0 16px 10px;align-items:center}
-.assist-key-row.show{display:flex}
-.assist-key-row input{flex:1;min-width:0;border:1px solid var(--line,rgba(239,232,220,.08));background:var(--bg,#0b0c10);color:inherit;border-radius:999px;padding:10px 12px;font:500 14px Montserrat,sans-serif}
-.assist-key-row button{border:0;background:var(--gold,#d4b483);color:var(--on-accent,#1a140c);border-radius:999px;padding:10px 12px;font:700 11px Montserrat,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
-.assist-key-hint{margin:0;font-size:11px;color:var(--muted,#9a9286);line-height:1.35}
-`;
-    document.head.appendChild(s);
+  function answerQuestion(text) {
+    const n = norm(text);
+    const ctx = collectContext();
+    const date = parseDate(n) || (/\bнедел/.test(n) ? "" : "");
+    if (/(дел|задач|туду|todo)/.test(n)) {
+      if (/(саш)/.test(n)) return { say: listTasks("sasha") };
+      if (/(маш)/.test(n)) return { say: listTasks("masha") };
+      const a = listTasks("sasha");
+      const b = listTasks("masha");
+      return { say: a + " " + b };
+    }
+    if (/(рацион|питани|меню|что на ужин|что на обед|что на завтрак|еда на)/.test(n)) {
+      return {
+        say: ctx.ration
+          ? "Сейчас закреплён рацион: «" + ctx.ration + "». Открываю питание."
+          : "Рацион недели не закреплён. Открываю питание — там можно выбрать.",
+        open: LINKS.pitanie,
+      };
+    }
+    if (date) return { say: listEvents(date, date), calendar: true };
+    if (/\bнедел/.test(n) || /ближайш/.test(n) || /календар/.test(n) || /встреч/.test(n) || /что сегодня|что завтра/.test(n)) {
+      const to = addDays(ctx.today, 7);
+      return { say: listEvents(ctx.today, to), calendar: true };
+    }
+    return null;
   }
 
-  function attach() {
-    injectCss();
-    const head = document.querySelector(".assist-head");
-    const panel = document.getElementById("assist-panel");
-    if (!head || !panel || document.getElementById("assist-key")) return;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "assist-key" + (hasKey() ? " on" : "");
-    btn.id = "assist-key";
-    btn.textContent = hasKey() ? "ключ ✓" : "ключ";
-    const close = head.querySelector(".assist-close");
-    if (close) head.insertBefore(btn, close);
-    else head.appendChild(btn);
-    const row = document.createElement("div");
-    row.className = "assist-key-row";
-    row.id = "assist-key-row";
-    row.innerHTML = `
-      <input id="assist-key-input" type="password" maxlength="200" placeholder="Ключ Google AI Studio" autocomplete="off" />
-      <button type="button" id="assist-key-save">Сохранить</button>`;
-    const log = document.getElementById("assist-log");
-    panel.insertBefore(row, log || head.nextSibling);
-    const hint = document.createElement("p");
-    hint.className = "assist-key-hint";
-    hint.id = "assist-key-hint";
-    hint.hidden = true;
-    hint.textContent = "Бесплатный ключ: aistudio.google.com → Get API key. Он останется только в этом браузере, в код сайта не попадёт.";
-    row.after(hint);
-    btn.addEventListener("click", () => {
-      const on = !row.classList.contains("show");
-      row.classList.toggle("show", on);
-      hint.hidden = !on;
-      if (on) document.getElementById("assist-key-input")?.focus();
-    });
-    document.getElementById("assist-key-save")?.addEventListener("click", () => {
-      const input = document.getElementById("assist-key-input");
-      const ok = saveKey(input?.value || "");
-      if (input) input.value = "";
-      btn.textContent = ok ? "ключ ✓" : "ключ";
-      btn.classList.toggle("on", ok);
-      row.classList.remove("show");
-      hint.hidden = true;
-      const logEl = document.getElementById("assist-log");
-      if (logEl) {
-        const el = document.createElement("div");
-        el.className = "assist-msg bot";
-        el.textContent = ok
-          ? "Умный режим включён. Можно спрашивать своими словами."
-          : "Ключ снят. Снова работаю короткими командами.";
-        logEl.appendChild(el);
-        logEl.scrollTop = logEl.scrollHeight;
+  function openSection(n) {
+    const go = (key, say, extra) => ({ say, ...extra });
+    if (/(домой|главн|экосистем|лендинг)/.test(n)) return go("home", "Возвращаю на главную.", { home: true });
+    if (/(бюджет|мониторинг|деньг|финанс|fcf)/.test(n)) return go("budget", "Открываю мониторинг бюджета.", { open: LINKS.budget });
+    if ((hasStem(n, "питани") || hasStem(n, "рацион") || hasWord(n, "меню") || hasStem(n, "рецепт") || hasAny(n, ["еду", "еда"])) && !hasStem(n, "запиш") && !hasStem(n, "потрат")) {
+      return go("pitanie", "Открываю питание.", { open: LINKS.pitanie });
+    }
+    if ((hasStem(n, "заметк") || n.includes("список дел") || hasAny(n, ["туду", "todo"])) && !isTaskHint(n)) {
+      return go("zametki", "Открываю заметки.", { open: LINKS.zametki });
+    }
+    if (/(календар|событи|встреч|готовк)/.test(n) && !/(поставь|добав|запиш)/.test(n) && !parseDate(n)) {
+      return go("calendar", "Открываю календарь.", { calendar: true });
+    }
+    if (/(цел[иь]|горизонт|желани)/.test(n) && !/(добав)/.test(n)) {
+      return go("goals", "Открываю цели.", { goals: true });
+    }
+    if (/(ремонт|чек.?лист|whitebox|отделк|мебел|материал|вдохновлен|референс)/.test(n) && !/(потрат|руб)/.test(n)) {
+      return go("remont", "Открываю ремонт.", { open: LINKS.remont });
+    }
+    return null;
+  }
+
+  function finishTask(person, text, due) {
+    const task = taskText(text);
+    if (!task || task.length < 2) {
+      pending = { type: "task", who: person, due: due || "" };
+      return { say: person === "masha" ? "Какое дело добавить Маше?" : "Какое дело добавить Саше?" };
+    }
+    pending = null;
+    addNote(person, task, due);
+    const who = person === "masha" ? "Маше" : "Саше";
+    const when = due ? " на " + prettyDate(due) : "";
+    return { say: "Добавила дело " + who + when + ": «" + task + "». Оно уже в заметках.", open: LINKS.zametki };
+  }
+
+  function finishExpense(amount, category) {
+    if (!amount) {
+      pending = { type: "expense", category: category || "" };
+      return { say: category ? "Категория «" + category + "» есть. Назовите сумму цифрами." : "Какую сумму записать?" };
+    }
+    if (!category) {
+      pending = { type: "expense", amount };
+      return { say: "Сумму " + amount.toLocaleString("ru-RU") + " ₽ услышала. В какую категорию — такси, рестораны, супермаркеты?" };
+    }
+    pending = null;
+    const month = addExpense(category, amount);
+    return {
+      say: "Записала " + amount.toLocaleString("ru-RU") + " ₽ в «" + category + "» за " + monthName(month) + ".",
+      open: LINKS.budget,
+    };
+  }
+
+  function finishEvent(args) {
+    const title = String(args.title || "").trim();
+    if (!title || title.length < 2) {
+      pending = { type: "event", date: args.date, start: args.start || "", who: args.who || "" };
+      return { say: "Как назвать встречу на " + prettyDate(args.date) + "?" };
+    }
+    pending = null;
+    if (!addEvent(args)) {
+      return { say: "Календарь с этой страницы не пишется. Откройте главную и повторите.", calendar: true };
+    }
+    return {
+      say: "Поставила «" + title + "» на " + prettyDate(args.date) + (args.start ? " в " + args.start : "") + ".",
+      calendar: true,
+    };
+  }
+
+  function continuePending(text) {
+    const n = norm(text);
+    if (!pending) return null;
+    if (/(открой|покажи|перейди|найди|погугли|тем[ауы]|отмена|не надо|стоп)/.test(n)) {
+      pending = null;
+      return interpret(text);
+    }
+    if (pending.type === "task") return finishTask(pending.who, text, pending.due);
+    if (pending.type === "expense") {
+      const amount = parseAmount(text) || pending.amount;
+      const category = matchCategory(text) || pending.category;
+      if (CAT_NAMES.includes(n)) return finishExpense(amount, n);
+      return finishExpense(amount, category);
+    }
+    if (pending.type === "event") {
+      return finishEvent({
+        title: eventTitle(text) || stripFiller(text),
+        date: pending.date,
+        start: parseTime(n) || pending.start,
+        who: parseEventWho(n) || pending.who,
+      });
+    }
+    pending = null;
+    return null;
+  }
+
+  function interpret(text) {
+    const raw = String(text || "").trim();
+    const n = norm(raw);
+    if (!n) return { say: "Скажите ещё раз — я не расслышала." };
+
+    if (/(помощ|умеешь|сценари|что можешь|help|как тобой)/.test(n)) {
+      return { say: "Можно своими словами. Открыть раздел. Добавить дело Саше или Маше. Записать трату. Поставить встречу на завтра. Спросить, что сегодня или какие дела. Если нужен интернет — скажите «найди …»." };
+    }
+    if (/(найди|погугли|поиск|что такое|кто такой|загугли)/.test(n)) {
+      const q = raw.replace(/^(найди|погугли|поиск|что такое|кто такой|загугли)\s+/i, "").trim() || raw;
+      return { say: "Сама в интернет не хожу. Открыла поиск Яндекса.", search: q };
+    }
+    if (/(светл(ая|ую) тем|темн(ая|ую) тем|переключ.*тем)/.test(n)) {
+      return { say: "Переключаю тему.", theme: true };
+    }
+
+    if (isQuestion(n)) {
+      const ans = answerQuestion(raw);
+      if (ans) return ans;
+    }
+
+    const amount = parseAmount(raw);
+    const cat = matchCategory(raw);
+    const wantsMoney = hasStem(n, "добав") || hasStem(n, "запиш") || hasStem(n, "потрат") || hasStem(n, "трат") || hasStem(n, "затрат") || hasWord(n, "минус") || hasStem(n, "списал") || hasStem(n, "оплатил") || (amount && cat);
+    if (amount && cat) return finishExpense(amount, cat);
+    if (wantsMoney && (amount || cat) && !parsePerson(n)) return finishExpense(amount, cat);
+
+    const person = parsePerson(n);
+    const date = parseDate(n);
+    const time = parseTime(n);
+    const title = eventTitle(raw);
+    const wantsCal = hasStem(n, "поставь") || hasStem(n, "встреч") || hasStem(n, "событи") || hasStem(n, "календар") || n.includes("запись к") || hasStem(n, "стоматолог") || hasWord(n, "врач") || hasWord(n, "кино") || n.includes("день рожден") || Boolean(time && date && title);
+    const wantsTask = isTaskHint(n) || (person && !wantsCal);
+
+    if (person && (wantsTask || hasAny(n, ["маше", "саше", "маша", "саша"])) && !wantsCal) {
+      return finishTask(person, raw, date);
+    }
+
+    if (date && (wantsCal || (title && title.length >= 2 && !person && !amount))) {
+      if (isQuestion(n)) {
+        return { say: listEvents(date, date), calendar: true };
       }
-    });
+      return finishEvent({ title, date, start: time, who: parseEventWho(n) });
+    }
+
+    if (person && title && title.length >= 2) return finishTask(person, raw, date);
+
+    const opened = openSection(n);
+    if (opened) return opened;
+
+    const q = answerQuestion(raw);
+    if (q) return q;
+
+    return {
+      say: "Не совсем поняла. Можно так: «Саше купить хлеб», «запиши 1500 в такси», «завтра в 19 ужин», «что завтра».",
+    };
   }
 
-  global.SashaButler = { hasKey, saveKey, ask, attach, explainError, greeting() {
-    return hasKey()
-      ? "Привет. Спросите как угодно — открыть раздел, записать дело, трату или встречу, спросить, что завтра."
-      : "Привет. Могу открыть разделы и записать дело или трату. Чтобы понимать свободные фразы, нажмите «ключ» и вставьте ключ Google AI.";
-  } };
+  function ask(text) {
+    const cont = continuePending(text);
+    if (cont) return cont;
+    return interpret(text);
+  }
+
+  function attach() {}
+
+  global.SashaButler = {
+    hasKey() { return true; },
+    saveKey() { return true; },
+    ask,
+    attach,
+    explainError(err) {
+      return "Не получилось обработать фразу. Попробуйте ещё раз своими словами.";
+    },
+    greeting() {
+      return "Привет. Говорите как удобно: открыть раздел, записать дело или трату, поставить встречу, спросить что завтра.";
+    },
+  };
 })(window);
