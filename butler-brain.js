@@ -339,6 +339,166 @@
       .trim();
   }
 
+  const PLACES = [
+    { keys: ["москв", "мск"], name: "Москве", lat: 55.75, lon: 37.62, tz: "Europe/Moscow" },
+    { keys: ["питер", "петербург", "санкт", "спб"], name: "Петербурге", lat: 59.93, lon: 30.32, tz: "Europe/Moscow" },
+    { keys: ["пхукет", "phuket"], name: "на Пхукете", lat: 7.89, lon: 98.40, tz: "Asia/Bangkok" },
+    { keys: ["бангкок"], name: "Бангкоке", lat: 13.75, lon: 100.50, tz: "Asia/Bangkok" },
+    { keys: ["тайланд", "таиланд"], name: "на Пхукете", lat: 7.89, lon: 98.40, tz: "Asia/Bangkok" },
+    { keys: ["сочи"], name: "Сочи", lat: 43.60, lon: 39.73, tz: "Europe/Moscow" },
+  ];
+
+  function isWeather(n) {
+    return hasStem(n, "погод") || hasStem(n, "дожд") || n.includes("градус")
+      || hasStem(n, "прогноз") || hasWord(n, "зонт") || hasStem(n, "морос")
+      || (hasStem(n, "снег") && !hasStem(n, "дел"));
+  }
+  function isFamilyQuestion(n) {
+    return hasStem(n, "дел") || hasStem(n, "задач") || hasStem(n, "рацион") || hasStem(n, "питани")
+      || hasStem(n, "календар") || hasStem(n, "встреч") || hasStem(n, "заметк")
+      || (/что сегодня|что завтра|на неделе/.test(n) && !isWeather(n));
+  }
+  function isWikiAsk(n) {
+    return /что такое|кто так|кто эт|расскажи про|что значит|как приготовить|как сварить|как сделать/.test(n);
+  }
+
+  function wmoText(code) {
+    const c = Number(code);
+    if (c === 0) return "ясно";
+    if (c <= 3) return "облачно";
+    if (c <= 48) return "туман";
+    if (c <= 57) return "морось";
+    if (c <= 67) return "дождь";
+    if (c <= 77) return "снег";
+    if (c <= 82) return "ливни";
+    if (c <= 86) return "снег";
+    if (c >= 95) return "гроза";
+    return "без осадков";
+  }
+  function deg(v) {
+    if (v == null || Number.isNaN(Number(v))) return "—";
+    const n = Math.round(Number(v));
+    return (n > 0 ? "+" : "") + n + "°";
+  }
+  async function fetchJson(url) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return await res.json();
+    } finally {
+      clearTimeout(t);
+    }
+  }
+  function weatherPlace(n) {
+    for (let i = 0; i < PLACES.length; i += 1) {
+      if (PLACES[i].keys.some((k) => n.includes(k))) return PLACES[i];
+    }
+    const m = n.match(/(?:в|во|на)\s+([а-яa-z\-]{3,})/);
+    if (m && !hasAny(m[1], ["сегодня", "завтра", "погоду", "погоде", "улице", "городе"])) {
+      return { query: m[1] };
+    }
+    return PLACES[0];
+  }
+  async function resolvePlace(n) {
+    const place = weatherPlace(n);
+    if (place.lat) return place;
+    try {
+      const data = await fetchJson("https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(place.query) + "&count=1&language=ru&format=json");
+      const hit = data?.results?.[0];
+      if (!hit) return PLACES[0];
+      return {
+        name: hit.name,
+        lat: hit.latitude,
+        lon: hit.longitude,
+        tz: hit.timezone || "auto",
+      };
+    } catch {
+      return PLACES[0];
+    }
+  }
+  function weatherDayIndex(n) {
+    const today = moscowToday();
+    const d = parseDate(n);
+    if (!d) return 0;
+    const a = Date.parse(today + "T00:00:00Z");
+    const b = Date.parse(d + "T00:00:00Z");
+    let i = Math.round((b - a) / 86400000);
+    if (i < 0) i = 0;
+    if (i > 6) i = 6;
+    return i;
+  }
+  async function tellWeather(text) {
+    const n = norm(text);
+    try {
+      const place = await resolvePlace(n);
+      const url = "https://api.open-meteo.com/v1/forecast?latitude=" + place.lat
+        + "&longitude=" + place.lon
+        + "&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m"
+        + "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max"
+        + "&wind_speed_unit=ms&timezone=" + encodeURIComponent(place.tz || "auto")
+        + "&forecast_days=7";
+      const data = await fetchJson(url);
+      const cur = data.current || {};
+      const daily = data.daily || {};
+      const where = place.name.startsWith("на ") || place.name.startsWith("в ") ? place.name : "в " + place.name;
+      if (hasStem(n, "недел") || n.includes("ближайш")) {
+        const lines = (daily.time || []).slice(0, 5).map((day, i) => {
+          return prettyDate(day) + ": " + deg(daily.temperature_2m_min?.[i]) + "…" + deg(daily.temperature_2m_max?.[i]) + ", " + wmoText(daily.weather_code?.[i]);
+        });
+        return { say: "Погода " + where + " на дни: " + lines.join("; ") + "." };
+      }
+      const idx = weatherDayIndex(n);
+      if (idx === 0 && !hasWord(n, "завтра") && !hasWord(n, "послезавтра")) {
+        const rain = daily.precipitation_probability_max?.[0];
+        const extra = rain != null ? " Вероятность осадков " + rain + "%." : "";
+        return {
+          say: "Сейчас " + where + " " + deg(cur.temperature_2m) + ", " + wmoText(cur.weather_code)
+            + ", ощущается как " + deg(cur.apparent_temperature)
+            + ", ветер " + Math.round(Number(cur.wind_speed_10m) || 0) + " м/с."
+            + " Днём до " + deg(daily.temperature_2m_max?.[0]) + ", ночью около " + deg(daily.temperature_2m_min?.[0]) + "."
+            + extra,
+        };
+      }
+      const day = daily.time?.[idx];
+      const rain = daily.precipitation_probability_max?.[idx];
+      return {
+        say: (idx === 1 ? "Завтра" : prettyDate(day)) + " " + where + " " + wmoText(daily.weather_code?.[idx])
+          + ", днём " + deg(daily.temperature_2m_max?.[idx]) + ", ночью " + deg(daily.temperature_2m_min?.[idx])
+          + (rain != null ? ", осадки " + rain + "%." : "."),
+      };
+    } catch {
+      return { say: "Погоду сейчас не достала. Открыла прогноз в Яндексе.", search: (text || "погода Москва").replace(/^какая\s+/i, "") };
+    }
+  }
+  function wikiQuery(text) {
+    return String(text || "")
+      .replace(/^(подскажи|скажи|пожалуйста)\s+/i, "")
+      .replace(/^(что такое|кто такая|кто такой|кто это|расскажи про|что значит|как приготовить|как сварить|как сделать)\s+/i, "")
+      .replace(/[?!.]+$/g, "")
+      .trim();
+  }
+  async function tellWiki(text, allowSearch) {
+    const q = wikiQuery(text) || String(text || "").trim();
+    if (q.length < 2) return { say: "Уточните, про что спросить." };
+    try {
+      const look = await fetchJson("https://ru.wikipedia.org/w/api.php?origin=*&action=opensearch&limit=1&namespace=0&format=json&search=" + encodeURIComponent(q));
+      const title = look && look[1] && look[1][0];
+      if (!title) {
+        if (allowSearch) return { say: "Коротко не нашла. Открыла поиск Яндекса.", search: q };
+        return { say: "Не нашла короткую справку. Открыла поиск Яндекса.", search: q };
+      }
+      const sum = await fetchJson("https://ru.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(title));
+      let extract = String(sum?.extract || look[2]?.[0] || "").replace(/\s+/g, " ").trim();
+      if (extract.length > 420) extract = extract.slice(0, 417).replace(/\s+\S*$/, "") + "…";
+      if (!extract) return { say: "Открыла поиск Яндекса.", search: q };
+      return { say: extract };
+    } catch {
+      return { say: "Справку сейчас не достала. Открыла поиск Яндекса.", search: q };
+    }
+  }
+
   function isQuestion(n) {
     return /^(что|какие|какой|какая|когда|сколько|есть ли|подскажи|скажи|какие дела|а что)/.test(n)
       || /(что завтра|что сегодня|на неделе|какие дела|что по еде|что по питанию|какой рацион)/.test(n);
@@ -382,7 +542,7 @@
       };
     }
     if (date) return { say: listEvents(date, date), calendar: true };
-    if (/\bнедел/.test(n) || /ближайш/.test(n) || /календар/.test(n) || /встреч/.test(n) || /что сегодня|что завтра/.test(n)) {
+    if (hasStem(n, "недел") || hasStem(n, "ближайш") || hasStem(n, "календар") || hasStem(n, "встреч") || /что сегодня|что завтра/.test(n)) {
       const to = addDays(ctx.today, 7);
       return { say: listEvents(ctx.today, to), calendar: true };
     }
@@ -489,11 +649,11 @@
     if (!n) return { say: "Скажите ещё раз — я не расслышала." };
 
     if (/(помощ|умеешь|сценари|что можешь|help|как тобой)/.test(n)) {
-      return { say: "Можно своими словами. Открыть раздел. Добавить дело Саше или Маше. Записать трату. Поставить встречу на завтра. Спросить, что сегодня или какие дела. Если нужен интернет — скажите «найди …»." };
+      return { say: "Можно своими словами. Открыть раздел, записать дело или трату, поставить встречу. Спросить, что завтра, какая погода, что такое — отвечу сама." };
     }
-    if (/(найди|погугли|поиск|что такое|кто такой|загугли)/.test(n)) {
-      const q = raw.replace(/^(найди|погугли|поиск|что такое|кто такой|загугли)\s+/i, "").trim() || raw;
-      return { say: "Сама в интернет не хожу. Открыла поиск Яндекса.", search: q };
+    if (/(найди|погугли|поиск|загугли)/.test(n)) {
+      const q = raw.replace(/^(найди|погугли|поиск|загугли)\s+/i, "").trim() || raw;
+      return { say: "Открыла поиск Яндекса.", search: q };
     }
     if (/(светл(ая|ую) тем|темн(ая|ую) тем|переключ.*тем)/.test(n)) {
       return { say: "Переключаю тему.", theme: true };
@@ -541,9 +701,14 @@
     };
   }
 
-  function ask(text) {
+  async function ask(text) {
+    const raw = String(text || "").trim();
+    const n = norm(raw);
     const cont = continuePending(text);
     if (cont) return cont;
+    if (isWeather(n)) return tellWeather(raw);
+    if (isWikiAsk(n)) return tellWiki(raw, true);
+    if (isQuestion(n) && !isFamilyQuestion(n)) return tellWiki(raw, true);
     return interpret(text);
   }
 
@@ -558,7 +723,7 @@
       return "Не получилось обработать фразу. Попробуйте ещё раз своими словами.";
     },
     greeting() {
-      return "Привет. Говорите как удобно: открыть раздел, записать дело или трату, поставить встречу, спросить что завтра.";
+      return "Привет. Можно своими словами: открыть раздел, записать дело или трату, поставить встречу, спросить что завтра или какая сегодня погода.";
     },
   };
 })(window);
