@@ -469,7 +469,7 @@
           + (rain != null ? ", осадки " + rain + "%." : "."),
       };
     } catch {
-      return { say: "Погоду сейчас не достала. Открыла прогноз в Яндексе.", search: (text || "погода Москва").replace(/^какая\s+/i, "") };
+      return { say: "Погоду сейчас не достала. Напишите ещё раз через минуту." };
     }
   }
   function wikiQuery(text) {
@@ -712,11 +712,18 @@
     return interpret(text);
   }
 
-  function attach() {}
+  function stripKeyUi() {
+    document.querySelectorAll("#assist-key, #assist-key-row, #assist-key-hint, .assist-key, .assist-key-row, .assist-key-hint").forEach((el) => el.remove());
+    try { localStorage.removeItem("sasha-butler-gemini"); } catch {}
+  }
+
+  function attach() {
+    stripKeyUi();
+  }
 
   global.SashaButler = {
-    hasKey() { return true; },
-    saveKey() { return true; },
+    hasKey() { return false; },
+    saveKey() { return false; },
     ask,
     attach,
     explainError(err) {

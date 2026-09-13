@@ -290,39 +290,23 @@
     </div>
   </section>
 
-  <button type="button" class="assist-fab" id="assist-open">Дворецкий</button>
-  <section class="assist-panel hidden" id="assist-panel" hidden>
-    <header class="assist-head">
-      <div>
-        <p class="eyebrow">семейный дворецкий</p>
-        <strong>Текстом или голосом</strong>
-      </div>
-      <button type="button" class="assist-close" id="assist-close">Закрыть</button>
-    </header>
-    <div class="assist-log" id="assist-log"></div>
-    <div class="assist-chips">
-      <button type="button" data-assist="открой бюджет">бюджет</button>
-      <button type="button" data-assist="открой питание">питание</button>
-      <button type="button" data-assist="открой заметки">заметки</button>
-      <button type="button" data-assist="открой ремонт">ремонт</button>
-      <button type="button" data-assist="открой календарь">календарь</button>
-      <button type="button" data-assist="открой цели">цели</button>
-      <button type="button" data-assist="добавь Маше купить молоко">дело Маше</button>
-      <button type="button" data-assist="запиши 1500 в такси">трата</button>
-    </div>
-    <form class="assist-form" id="assist-form">
-      <input id="assist-input" type="text" maxlength="400" placeholder="Спросите как угодно: что завтра, добавь Маше молоко…" autocomplete="off" />
-      <button type="button" class="assist-mic" id="assist-mic">Зажать и говорить</button>
-      <button type="submit">Отправить</button>
-    </form>
-  </section>
-
+  <script>
+    try { localStorage.removeItem("sasha-butler-gemini"); } catch (e) {}
+    (function () {
+      function wipe() {
+        document.querySelectorAll("#assist-key,#assist-key-row,#assist-key-hint,.assist-key,.assist-key-row,.assist-key-hint").forEach(function (n) { n.remove(); });
+      }
+      wipe();
+      document.addEventListener("DOMContentLoaded", wipe);
+      new MutationObserver(wipe).observe(document.documentElement, { childList: true, subtree: true });
+    })();
+  </script>
   <script src="auth.js?v=1"></script>
   <script src="sync.js?v=12"></script>
   <script src="cooking-index.js?v=1"></script>
   <script src="calendar.js?v=15"></script>
   <script src="app.js?v=11"></script>
   <script src="voice-mic.js?v=1"></script>
-  <script src="assistant.js?v=19"></script>
+  <script src="assistant.js?v=20"></script>
 </body>
 </html>
